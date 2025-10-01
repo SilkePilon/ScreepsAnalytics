@@ -72,7 +72,7 @@ export function saveServerSettings(settings: Partial<ServerSettings>) {
   localStorage.setItem('screeps-settings', JSON.stringify(updated))
 }
 
-async function callServerAPI(action: string, settings: ServerSettings, params?: any) {
+async function callServerAPI(action: string, settings: ServerSettings, params?: Record<string, unknown>) {
   const response = await fetch('/api/screeps', {
     method: 'POST',
     headers: {

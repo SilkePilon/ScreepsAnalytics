@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     let url: string
-    let result: any
+    let result: unknown
 
     switch (action) {
       case 'test-connection':
@@ -111,8 +111,8 @@ export async function POST(request: NextRequest) {
         url = `${settings.apiUrl}/api/user/find?username=${settings.username}`
         const currentUser = await fetchWithAuth(url, settings)
         
-        const allUsers: any[] = []
-        const userMap = new Map<string, any>()
+        const allUsers: Record<string, unknown>[] = []
+        const userMap = new Map<string, Record<string, unknown>>()
         
         const processUser = async (userId: string) => {
           if (userMap.has(userId)) return
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
               let controllerCount = 0
               
               for (const roomData of validRooms) {
-                const controllers = roomData.objects.filter((obj: any) => obj.type === 'controller' && obj.user === userId && obj.level)
+                const controllers = roomData.objects.filter((obj: Record<string, unknown>) => obj.type === 'controller' && obj.user === userId && obj.level)
                 if (controllers.length > 0) {
                   totalRCL += controllers[0].level
                   controllerCount++
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
               
               const avgRCL = controllerCount > 0 ? totalRCL / controllerCount : 0
               
-              let userStats = {
+              const userStats = {
                 totalCreeps: 0,
                 totalSpawns: 0,
                 totalTowers: 0,
@@ -165,11 +165,11 @@ export async function POST(request: NextRequest) {
                 
                 for (const roomData of validRooms) {
                   if (roomData && roomData.objects) {
-                    const creeps = roomData.objects.filter((obj: any) => obj.type === 'creep' && obj.user === userId)
-                    const spawns = roomData.objects.filter((obj: any) => obj.type === 'spawn' && obj.user === userId)
-                    const towers = roomData.objects.filter((obj: any) => obj.type === 'tower' && obj.user === userId)
-                    const extensions = roomData.objects.filter((obj: any) => obj.type === 'extension' && obj.user === userId)
-                    const storages = roomData.objects.filter((obj: any) => obj.type === 'storage' && obj.user === userId)
+                    const creeps = roomData.objects.filter((obj: Record<string, unknown>) => obj.type === 'creep' && obj.user === userId)
+                    const spawns = roomData.objects.filter((obj: Record<string, unknown>) => obj.type === 'spawn' && obj.user === userId)
+                    const towers = roomData.objects.filter((obj: Record<string, unknown>) => obj.type === 'tower' && obj.user === userId)
+                    const extensions = roomData.objects.filter((obj: Record<string, unknown>) => obj.type === 'extension' && obj.user === userId)
+                    const storages = roomData.objects.filter((obj: Record<string, unknown>) => obj.type === 'storage' && obj.user === userId)
                     
                     userStats.totalCreeps += creeps.length
                     userStats.totalSpawns += spawns.length
@@ -246,12 +246,12 @@ export async function POST(request: NextRequest) {
                   await processUser(ownerData.user._id)
                 }
               }
-            } catch (e) {
+            } catch {
             }
           }
         }
         
-        result = allUsers.sort((a: any, b: any) => b.gcl - a.gcl).slice(0, limit)
+        result = allUsers.sort((a: Record<string, unknown>, b: Record<string, unknown>) => (b.gcl as number) - (a.gcl as number)).slice(0, limit)
         break
 
       default:

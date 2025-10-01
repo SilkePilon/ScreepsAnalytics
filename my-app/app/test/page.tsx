@@ -9,7 +9,7 @@ import { getServerSettings } from "@/lib/screeps-api"
 
 export default function TestPage() {
   const [room, setRoom] = useState("E0N0")
-  const [response, setResponse] = useState<any>(null)
+  const [response, setResponse] = useState<unknown>(null)
   const [loading, setLoading] = useState(false)
 
   const testRoomStats = async () => {
@@ -61,7 +61,7 @@ export default function TestPage() {
             {loading ? "Testing..." : "Test Room Stats"}
           </Button>
 
-          {response && (
+          {response !== null && (
             <div className="mt-4">
               <Label>API Response:</Label>
               <pre className="mt-2 rounded-lg bg-slate-950 p-4 text-sm text-slate-50 overflow-auto max-h-[600px]">
@@ -80,7 +80,7 @@ export default function TestPage() {
           <ol className="list-decimal list-inside space-y-2">
             <li>Make sure you have configured your server settings in the main dashboard</li>
             <li>Enter a room name that exists on your server (e.g., E0N0, W0N0)</li>
-            <li>Click "Test Room Stats" to see the actual API response</li>
+            <li>Click &ldquo;Test Room Stats&rdquo; to see the actual API response</li>
             <li>Check the server console logs for detailed debugging information</li>
           </ol>
         </CardContent>

@@ -62,7 +62,7 @@ export function SettingsDialog() {
       } else {
         toast.error('Connection failed. Check your settings.')
       }
-    } catch (e) {
+    } catch {
       toast.error('Connection failed. Check your settings.')
     } finally {
       setTesting(false)
