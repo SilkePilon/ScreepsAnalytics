@@ -161,7 +161,6 @@ export async function POST(request: NextRequest) {
               }
               
               try {
-                console.log(`\n=== Counting objects for user: ${user.username} ===`)
                 
                 for (const roomData of validRooms) {
                   if (roomData && roomData.objects) {
@@ -179,7 +178,6 @@ export async function POST(request: NextRequest) {
                   }
                 }
                 
-                console.log(`Object counts for ${user.username}:`, userStats)
               } catch (e) {
                 console.error(`Error counting objects for ${user.username}:`, e)
               }
@@ -194,14 +192,6 @@ export async function POST(request: NextRequest) {
                 totalTowers: userStats.totalTowers,
                 totalExtensions: userStats.totalExtensions,
                 totalStorage: userStats.totalStorage,
-                avgRCL: Math.round(avgRCL * 10) / 10,
-              })
-              
-              console.log(`Added user to leaderboard:`, {
-                username: user.username,
-                rooms: rooms.length,
-                gcl: user.gcl || 0,
-                objects: userStats,
                 avgRCL: Math.round(avgRCL * 10) / 10,
               })
               
