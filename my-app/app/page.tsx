@@ -80,7 +80,7 @@ export default function Page() {
                 <TabsContent value="charts" className="mt-6">
                   {!analyticsLoaded ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-muted-foreground">Analytics not loaded. Click below to load data.</p>
+                      <p className="text-muted-foreground text-center px-4">Analytics not loaded. Click below to load data.</p>
                       <button
                         onClick={loadData}
                         disabled={loading}
@@ -95,7 +95,7 @@ export default function Page() {
                     </div>
                   ) : error ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-destructive">{error}</p>
+                      <p className="text-destructive text-center px-4">{error}</p>
                       <button
                         onClick={loadData}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -122,7 +122,7 @@ export default function Page() {
                 <TabsContent value="players" className="mt-6">
                   {!analyticsLoaded ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-muted-foreground">Analytics not loaded. Load analytics first to view players.</p>
+                      <p className="text-muted-foreground text-center px-4">Analytics not loaded. Load analytics first to view players.</p>
                       <button
                         onClick={loadData}
                         disabled={loading}
@@ -137,7 +137,7 @@ export default function Page() {
                     </div>
                   ) : error ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-destructive">{error}</p>
+                      <p className="text-destructive text-center px-4">{error}</p>
                       <button
                         onClick={loadData}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -161,7 +161,7 @@ export default function Page() {
                 <TabsContent value="table" className="mt-6">
                   {!analyticsLoaded ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-muted-foreground">Analytics not loaded. Load analytics first to view leaderboard.</p>
+                      <p className="text-muted-foreground text-center px-4">Analytics not loaded. Load analytics first to view leaderboard.</p>
                       <button
                         onClick={loadData}
                         disabled={loading}
@@ -176,7 +176,7 @@ export default function Page() {
                     </div>
                   ) : error ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-destructive">{error}</p>
+                      <p className="text-destructive text-center px-4">{error}</p>
                       <button
                         onClick={loadData}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
