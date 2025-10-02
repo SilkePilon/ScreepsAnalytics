@@ -95,6 +95,36 @@ export async function POST(request: NextRequest) {
         result = await fetchWithAuth(url, settings)
         break
 
+      case 'console-command':
+        const command = params?.command as string
+        if (!command) {
+          return NextResponse.json(
+            { error: 'Command is required' },
+            { status: 400 }
+          )
+        }
+        
+        url = `${settings.apiUrl}/api/user/console`
+        const commandResponse = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Token': authToken || await signin(settings),
+            'X-Username': settings.username,
+          },
+          body: JSON.stringify({
+            expression: command,
+            shard: settings.shard
+          })
+        })
+        
+        if (!commandResponse.ok) {
+          throw new Error(`Console command failed: ${commandResponse.status}`)
+        }
+        
+        result = await commandResponse.json()
+        break
+
       case 'test-room-stats':
         const testRoom = params?.room || 'E0N0'
         console.log(`\n=== Testing room stats for: ${testRoom} ===`)

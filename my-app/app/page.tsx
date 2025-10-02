@@ -4,7 +4,9 @@ import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartsGrid } from "@/components/charts-grid"
 import { PlayerLeaderboard } from "@/components/player-leaderboard"
-import { SectionCards } from "@/components/section-cards"
+import { PlayersGrid } from "@/components/players-grid"
+import { ConsoleActions } from "@/components/console-actions"
+import { RoomControl } from "@/components/room-control"
 import { SiteHeader } from "@/components/site-header"
 import {
   SidebarInset,
@@ -61,11 +63,13 @@ export default function Page() {
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-              <SectionCards players={players} loading={loading} />
               
               <Tabs defaultValue="charts" className="px-4 lg:px-6">
-                <TabsList className="grid w-full max-w-md grid-cols-2">
-                  <TabsTrigger value="charts">Analytics Charts</TabsTrigger>
+                <TabsList className="grid w-full max-w-4xl grid-cols-5">
+                  <TabsTrigger value="charts">Analytics</TabsTrigger>
+                  <TabsTrigger value="players">Players</TabsTrigger>
+                  <TabsTrigger value="actions">Actions</TabsTrigger>
+                  <TabsTrigger value="rooms">Rooms</TabsTrigger>
                   <TabsTrigger value="table">Leaderboard</TabsTrigger>
                 </TabsList>
                 
@@ -87,6 +91,34 @@ export default function Page() {
                   ) : (
                     <ChartsGrid players={players} />
                   )}
+                </TabsContent>
+                
+                <TabsContent value="players" className="mt-6">
+                  {loading && players.length === 0 ? (
+                    <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
+                      <p className="text-muted-foreground">Loading players...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
+                      <p className="text-destructive">{error}</p>
+                      <button
+                        onClick={loadData}
+                        className="text-primary hover:underline"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : (
+                    <PlayersGrid players={players} />
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="actions" className="mt-6">
+                  <ConsoleActions />
+                </TabsContent>
+                
+                <TabsContent value="rooms" className="mt-6">
+                  <RoomControl />
                 </TabsContent>
                 
                 <TabsContent value="table" className="mt-6">
