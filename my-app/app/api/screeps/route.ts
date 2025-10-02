@@ -154,6 +154,58 @@ export async function POST(request: NextRequest) {
         }
         break
 
+      case 'get-room-objects':
+        const roomName = params?.room as string
+        if (!roomName) {
+          return NextResponse.json(
+            { error: 'Room name is required' },
+            { status: 400 }
+          )
+        }
+        
+        url = `${settings.apiUrl}/api/game/room-objects?room=${roomName}&shard=${settings.shard}`
+        result = await fetchWithAuth(url, settings)
+        break
+
+      case 'get-room-stats':
+        const statsRoom = params?.room as string
+        if (!statsRoom) {
+          return NextResponse.json(
+            { error: 'Room name is required' },
+            { status: 400 }
+          )
+        }
+        
+        url = `${settings.apiUrl}/api/game/room-overview?room=${statsRoom}&interval=8&shard=${settings.shard}`
+        result = await fetchWithAuth(url, settings)
+        break
+
+      case 'get-room-terrain':
+        const terrainRoom = params?.room as string
+        if (!terrainRoom) {
+          return NextResponse.json(
+            { error: 'Room name is required' },
+            { status: 400 }
+          )
+        }
+        
+        url = `${settings.apiUrl}/api/game/room-terrain?room=${terrainRoom}&encoded=1&shard=${settings.shard}`
+        result = await fetchWithAuth(url, settings)
+        break
+
+      case 'get-user-rooms':
+        const userId = params?.userId as string
+        if (!userId) {
+          return NextResponse.json(
+            { error: 'User ID is required' },
+            { status: 400 }
+          )
+        }
+        
+        url = `${settings.apiUrl}/api/user/rooms?id=${userId}`
+        result = await fetchWithAuth(url, settings)
+        break
+
       case 'test-room-stats':
         const testRoom = params?.room || 'E0N0'
         console.log(`\n=== Testing room stats for: ${testRoom} ===`)
