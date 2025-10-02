@@ -24,14 +24,14 @@ export function SiteHeader({ onRefresh }: SiteHeaderProps) {
         <div className="ml-auto flex items-center gap-2">
           <ModeToggle />
           <SettingsDialog />
-          <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
+          <Button variant="outline" asChild size="icon" className="hidden sm:flex">
             <a
               href="https://github.com/screeps/screeps"
               rel="noopener noreferrer"
               target="_blank"
-              className="dark:text-foreground"
+              title="Screeps"
             >
-              Screeps
+              <span className="text-sm">S</span>
             </a>
           </Button>
         </div>

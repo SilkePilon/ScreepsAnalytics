@@ -161,7 +161,7 @@ export function SettingsDialog() {
     return (
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="outline" size="icon">
             <IconSettings className="size-5" />
             <span className="sr-only">Settings</span>
           </Button>
@@ -199,7 +199,7 @@ export function SettingsDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
+        <Button variant="outline" size="icon">
           <IconSettings className="size-5" />
           <span className="sr-only">Settings</span>
         </Button>
