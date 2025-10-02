@@ -92,6 +92,23 @@ export function ConsoleActions() {
 
   const loadActions = async (username: string) => {
     try {
+      const CACHE_KEY = `screeps_console_actions_${username}`
+      const CACHE_DURATION = 60 * 60 * 1000
+      
+      const cachedData = localStorage.getItem(CACHE_KEY)
+      if (cachedData) {
+        try {
+          const { actions: cachedActions, timestamp } = JSON.parse(cachedData)
+          const age = Date.now() - timestamp
+          if (age < CACHE_DURATION) {
+            setActions(cachedActions)
+            return
+          }
+        } catch (e) {
+          console.error('Failed to parse cached actions:', e)
+        }
+      }
+
       const { data, error } = await supabase
         .from('console_actions')
         .select('*')
@@ -99,11 +116,23 @@ export function ConsoleActions() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setActions(data || [])
+      
+      const actionsData = data || []
+      setActions(actionsData)
+      
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        actions: actionsData,
+        timestamp: Date.now()
+      }))
     } catch (error) {
       console.error('Failed to load actions:', error)
       toast.error("Failed to load console actions")
     }
+  }
+
+  const clearActionsCache = (username: string) => {
+    const CACHE_KEY = `screeps_console_actions_${username}`
+    localStorage.removeItem(CACHE_KEY)
   }
 
   const handleSaveAction = async () => {
@@ -147,6 +176,7 @@ export function ConsoleActions() {
         toast.success("Action created")
       }
 
+      clearActionsCache(playerName)
       await loadActions(playerName)
       setIsDialogOpen(false)
       setEditingAction(null)
@@ -168,6 +198,7 @@ export function ConsoleActions() {
 
       if (error) throw error
       
+      clearActionsCache(playerName)
       await loadActions(playerName)
       toast.success("Action deleted")
     } catch (error) {
