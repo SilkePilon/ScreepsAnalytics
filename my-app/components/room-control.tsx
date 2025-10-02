@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { RoomVisual, calculateControllerProgress } from "@/components/room-visual"
+import { RoomVisual, calculateControllerProgress, getControllerProgressTotal } from "@/components/room-visual"
 import { getServerSettings } from "@/lib/screeps-api"
+import { getFavoriteRooms, addFavoriteRoom, removeFavoriteRoom } from "@/lib/supabase"
 import { 
   IconHome, 
   IconRefresh, 
@@ -27,7 +28,10 @@ import {
   IconCpu,
   IconFlag,
   IconTarget,
-  IconMap
+  IconMap,
+  IconStar,
+  IconStarFilled,
+  IconArrowLeft
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 
@@ -64,6 +68,17 @@ interface TerrainData {
   terrain: string
 }
 
+interface RoomCardData {
+  name: string
+  rcl: number
+  creepCount: number
+  owner: string
+  energy: { available: number; capacity: number }
+  controller: { progress: number; progressTotal: number }
+  isFavorite: boolean
+  isMyRoom: boolean
+}
+
 export function RoomControl() {
   const [selectedRoom, setSelectedRoom] = useState<string>("")
   const [roomSearch, setRoomSearch] = useState<string>("")
@@ -71,6 +86,9 @@ export function RoomControl() {
   const [roomStats, setRoomStats] = useState<RoomStats | null>(null)
   const [roomTerrain, setRoomTerrain] = useState<string>("")
   const [myRooms, setMyRooms] = useState<string[]>([])
+  const [favoriteRooms, setFavoriteRooms] = useState<string[]>([])
+  const [roomCards, setRoomCards] = useState<RoomCardData[]>([])
+  const [playerSearchResults, setPlayerSearchResults] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(false)
 
@@ -137,6 +155,172 @@ export function RoomControl() {
     loadMyRooms()
   }, [])
 
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const serverSettings = getServerSettings()
+      if (serverSettings.username && serverSettings.apiUrl) {
+        const favorites = await getFavoriteRooms(serverSettings.username, serverSettings.apiUrl)
+        setFavoriteRooms(favorites)
+      }
+    }
+    loadFavorites()
+  }, [])
+
+  useEffect(() => {
+    if (myRooms.length > 0 || favoriteRooms.length > 0) {
+      loadRoomCards()
+    }
+  }, [myRooms, favoriteRooms])
+
+  const toggleFavorite = async (roomName: string) => {
+    const serverSettings = getServerSettings()
+    if (!serverSettings.username || !serverSettings.apiUrl) {
+      toast.error('Server settings not configured')
+      return
+    }
+
+    const isCurrentlyFavorite = favoriteRooms.includes(roomName)
+    
+    const success = isCurrentlyFavorite
+      ? await removeFavoriteRoom(serverSettings.username, serverSettings.apiUrl, roomName)
+      : await addFavoriteRoom(serverSettings.username, serverSettings.apiUrl, roomName)
+    
+    if (success) {
+      const newFavorites = isCurrentlyFavorite
+        ? favoriteRooms.filter(r => r !== roomName)
+        : [...favoriteRooms, roomName]
+      
+      setFavoriteRooms(newFavorites)
+      toast.success(isCurrentlyFavorite ? 'Removed from favorites' : 'Added to favorites')
+    } else {
+      toast.error('Failed to update favorites')
+    }
+  }
+
+  const loadRoomCards = async () => {
+    const allRooms = [...new Set([...myRooms, ...favoriteRooms])]
+    const cardsData: RoomCardData[] = []
+
+    for (const roomName of allRooms) {
+      try {
+        const settings = getServerSettings()
+        const [objectsResponse, statsResponse] = await Promise.all([
+          fetch('/api/screeps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'get-room-objects',
+              settings,
+              params: { room: roomName }
+            })
+          }),
+          fetch('/api/screeps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'get-room-stats',
+              settings,
+              params: { room: roomName }
+            })
+          })
+        ])
+
+        if (objectsResponse.ok) {
+          const data = await objectsResponse.json()
+          const objects: RoomObject[] = data.data?.objects || []
+          
+          const controller = objects.find(obj => obj.type === 'controller')
+          const creeps = objects.filter(obj => obj.type === 'creep')
+          const spawns = objects.filter(obj => obj.type === 'spawn')
+          const extensions = objects.filter(obj => obj.type === 'extension')
+          
+          let energyAvailable = 0
+          let energyCapacity = 0
+          
+          spawns.forEach(spawn => {
+            energyAvailable += spawn.store?.energy || spawn.energy || 0
+            energyCapacity += spawn.storeCapacityResource?.energy || spawn.storeCapacity || spawn.energyCapacity || 0
+          })
+          
+          extensions.forEach(ext => {
+            energyAvailable += ext.store?.energy || ext.energy || 0
+            energyCapacity += ext.storeCapacityResource?.energy || ext.storeCapacity || ext.energyCapacity || 0
+          })
+
+          let owner = 'Neutral'
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json()
+            owner = statsData.data?.owner?.username || 'Neutral'
+          }
+
+          const rcl = controller?.level || 0
+          const progress = controller?.progress || 0
+          const progressTotal = controller?.progressTotal || getControllerProgressTotal(rcl)
+
+          cardsData.push({
+            name: roomName,
+            rcl,
+            creepCount: creeps.length,
+            owner,
+            energy: { available: energyAvailable, capacity: energyCapacity },
+            controller: { 
+              progress, 
+              progressTotal 
+            },
+            isFavorite: favoriteRooms.includes(roomName),
+            isMyRoom: myRooms.includes(roomName)
+          })
+        }
+      } catch (error) {
+        console.error(`Failed to load card data for ${roomName}:`, error)
+      }
+    }
+
+    setRoomCards(cardsData)
+  }
+
+  const searchPlayerRooms = async (query: string) => {
+    if (!query.trim()) {
+      setPlayerSearchResults([])
+      return
+    }
+
+    try {
+      const settings = getServerSettings()
+      const response = await fetch('/api/screeps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'find-user',
+          settings,
+          params: { username: query }
+        })
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        if (userData.data?._id) {
+          const roomsResponse = await fetch('/api/screeps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'get-user-rooms',
+              settings,
+              params: { userId: userData.data._id }
+            })
+          })
+          
+          if (roomsResponse.ok) {
+            const roomsData = await roomsResponse.json()
+            setPlayerSearchResults(roomsData.data?.rooms || [])
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to search player rooms:', error)
+    }
+  }
+
   const loadRoomData = async (roomName: string) => {
     if (!roomName.trim()) return
 
@@ -188,7 +372,15 @@ export function RoomControl() {
       console.log('Sample controller:', objectsData.data?.objects?.find((o: RoomObject) => o.type === 'controller'))
       console.log('Room stats data:', statsData.data)
 
-      setRoomData(objectsData.data)
+      const roomDataWithOwner = {
+        ...objectsData.data,
+        owner: statsData.data?.owner ? {
+          username: statsData.data.owner.username,
+          _id: statsData.data.owner._id
+        } : undefined
+      }
+
+      setRoomData(roomDataWithOwner)
       setRoomStats(statsData.data)
       setRoomTerrain(terrainData.data?.terrain?.[0]?.terrain || "")
       toast.success(`Room ${roomName} loaded successfully`)
@@ -363,75 +555,235 @@ export function RoomControl() {
       </div>
 
       <div className="flex gap-2">
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <Label htmlFor="room-search" className="sr-only">Search Room</Label>
           <div className="relative">
             <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               id="room-search"
-              placeholder="Enter room name (e.g., E0N0)"
+              placeholder="Enter room name (e.g., E0N0) or player name"
               value={roomSearch}
-              onChange={(e) => setRoomSearch(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setRoomSearch(e.target.value.toUpperCase())
+                searchPlayerRooms(e.target.value)
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleLoadRoom()}
               className="pl-10"
             />
           </div>
+          {playerSearchResults.length > 0 && (
+            <Card className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
+              <CardContent className="p-2">
+                <div className="space-y-1">
+                  {playerSearchResults.map((room) => (
+                    <Button
+                      key={room}
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => {
+                        setSelectedRoom(room)
+                        setRoomSearch(room)
+                        loadRoomData(room)
+                        setPlayerSearchResults([])
+                      }}
+                    >
+                      <IconHome className="size-3 mr-2" />
+                      {room}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
-        <Button onClick={handleLoadRoom} disabled={loading || !roomSearch}>
-          <IconHome className="size-4" />
+        <Button variant="outline" onClick={handleLoadRoom} disabled={loading || !roomSearch}>
+          <IconHome className="size-4 mr-2" />
           Load Room
         </Button>
       </div>
 
-      {myRooms.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">My Rooms</CardTitle>
-            <CardDescription>Quick access to your controlled rooms</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {myRooms.map((room) => (
-                <Button
-                  key={room}
-                  variant={selectedRoom === room ? "default" : "outline"}
-                  size="sm"
+      {!selectedRoom ? (
+        <div className="space-y-4">
+          {roomCards.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {roomCards.map((room) => (
+                <Card 
+                  key={room.name} 
+                  className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
                   onClick={() => {
-                    setSelectedRoom(room)
-                    setRoomSearch(room)
-                    loadRoomData(room)
+                    setSelectedRoom(room.name)
+                    setRoomSearch(room.name)
+                    loadRoomData(room.name)
                   }}
                 >
-                  <IconHome className="size-3 mr-1" />
-                  {room}
-                </Button>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="size-12 rounded-lg border-2 border-primary/20 bg-primary/5 flex items-center justify-center">
+                          <span className="text-xl font-bold text-primary">{room.rcl}</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-base">{room.name}</h3>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <IconUser className="size-3" />
+                            {room.owner}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <Badge variant={room.isMyRoom ? "default" : "secondary"} className="text-xs">
+                          {room.isMyRoom ? "My Room" : "Favorite"}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFavorite(room.name)
+                          }}
+                        >
+                          {room.isFavorite ? (
+                            <IconStarFilled className="size-4 text-yellow-500" />
+                          ) : (
+                            <IconStar className="size-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <IconUser className="size-4" />
+                          Creeps
+                        </span>
+                        <span className="font-semibold">{room.creepCount}</span>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
+                            <IconBolt className="size-4" />
+                            Energy
+                          </span>
+                          <span className="font-semibold">
+                            {room.energy.capacity > 0 
+                              ? `${((room.energy.available / room.energy.capacity) * 100).toFixed(0)}%`
+                              : '0%'
+                            }
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-500"
+                            style={{ 
+                              width: `${room.energy.capacity > 0 
+                                ? Math.min((room.energy.available / room.energy.capacity) * 100, 100) 
+                                : 0}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {room.controller.progressTotal > 0 && room.rcl < 8 && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground flex items-center gap-1.5">
+                              <IconTarget className="size-4" />
+                              RCL Progress
+                            </span>
+                            <span className="font-semibold">
+                              {((room.controller.progress / room.controller.progressTotal) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-green-500 transition-all duration-500"
+                              style={{ 
+                                width: `${Math.min((room.controller.progress / room.controller.progressTotal) * 100, 100)}%` 
+                              }}
+                            />
+                          </div>
+                          {(() => {
+                            const remaining = room.controller.progressTotal - room.controller.progress
+                            const averageEnergyPerTick = 15
+                            const ticksRemaining = remaining / averageEnergyPerTick
+                            const hoursRemaining = (ticksRemaining * 3) / 3600
+                            
+                            if (hoursRemaining < 24) {
+                              const displayHours = hoursRemaining % 1 === 0 ? Math.round(hoursRemaining) : hoursRemaining.toFixed(1)
+                              return (
+                                <p className="text-xs text-muted-foreground">
+                                  ETA: {displayHours} hrs
+                                </p>
+                              )
+                            }
+                            
+                            const daysRemaining = Math.floor(hoursRemaining / 24)
+                            const hours = Math.round(hoursRemaining % 24)
+                            
+                            return (
+                              <p className="text-xs text-muted-foreground">
+                                ETA: {daysRemaining}d {hours}h
+                              </p>
+                            )
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {!selectedRoom ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <IconHome className="size-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Enter a room name to get started</p>
-          </CardContent>
-        </Card>
+          )}
+          
+          {roomCards.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <IconHome className="size-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-center">
+                  {myRooms.length === 0 
+                    ? "No rooms found. Enter a room name to get started" 
+                    : "Loading room data..."
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       ) : (
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="creeps">Creeps ({creeps.length})</TabsTrigger>
-            <TabsTrigger value="structures">Structures</TabsTrigger>
-            <TabsTrigger value="resources">Resources</TabsTrigger>
-          </TabsList>
+        <div className="space-y-4">
+          <Tabs defaultValue="overview" className="w-full">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedRoom("")
+                  setRoomData(null)
+                  setRoomStats(null)
+                  setRoomTerrain("")
+                }}
+              >
+                <IconArrowLeft className="size-4 mr-2" />
+                Back to Room List
+              </Button>
+              
+              <TabsList className="grid w-full max-w-2xl grid-cols-4">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="creeps">Creeps ({creeps.length})</TabsTrigger>
+                <TabsTrigger value="structures">Structures</TabsTrigger>
+                <TabsTrigger value="resources">Resources</TabsTrigger>
+              </TabsList>
+            </div>
 
           <TabsContent value="overview" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="flex items-center gap-2 flex-wrap">
                     <IconHome className="size-5" />
                     {selectedRoom}
                     {roomData?.owner && (
@@ -441,7 +793,19 @@ export function RoomControl() {
                       </Badge>
                     )}
                   </CardTitle>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => toggleFavorite(selectedRoom)}
+                    >
+                      {favoriteRooms.includes(selectedRoom) ? (
+                        <IconStarFilled className="size-4 text-yellow-500 mr-1" />
+                      ) : (
+                        <IconStar className="size-4 mr-1" />
+                      )}
+                      {favoriteRooms.includes(selectedRoom) ? 'Favorited' : 'Favorite'}
+                    </Button>
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -455,7 +819,9 @@ export function RoomControl() {
                     </Button>
                   </div>
                 </div>
-                <CardDescription>{isMyRoom ? 'Room information and statistics' : 'Viewing room information'}</CardDescription>
+                <CardDescription>
+                  {isMyRoom ? 'Room information and statistics' : `Viewing room information${roomData?.owner?.username ? ` (${roomData.owner.username})` : ''}`}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1353,6 +1719,7 @@ export function RoomControl() {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       )}
     </div>
   )

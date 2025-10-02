@@ -72,6 +72,22 @@ const TERRAIN_COLORS = {
   swamp: '#1a3a1a'
 }
 
+export function getControllerProgressTotal(rcl: number): number {
+  const downgrade = parseInt(process.env.NEXT_PUBLIC_CONTROLLER_DOWNGRADE || '10', 10)
+  const progressTotals: Record<number, number> = {
+    1: 200,
+    2: 45000,
+    3: 135000,
+    4: 405000,
+    5: 1215000,
+    6: 3645000,
+    7: 10935000,
+    8: 0
+  }
+  const total = progressTotals[rcl] || 0
+  return total > 0 ? Math.floor(total / downgrade) : 0
+}
+
 export function calculateControllerProgress(objects: RoomObject[]) {
   const controller = objects.find(obj => obj.type === 'controller')
   
@@ -86,10 +102,7 @@ export function calculateControllerProgress(objects: RoomObject[]) {
   let progressTotal = controller.progressTotal
   
   if (!progressTotal) {
-    const CONTROLLER_LEVELS = [
-      20, 4500, 13500, 40500, 121500, 364500, 1093500
-    ]
-    progressTotal = CONTROLLER_LEVELS[level - 1]
+    progressTotal = getControllerProgressTotal(level)
   }
   
   if (!progressTotal || progress > progressTotal * 2) {
