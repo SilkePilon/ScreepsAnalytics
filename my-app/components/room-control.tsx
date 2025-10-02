@@ -77,6 +77,23 @@ export function RoomControl() {
   useEffect(() => {
     const loadMyRooms = async () => {
       try {
+        const CACHE_KEY = 'screeps_my_rooms_cache'
+        const CACHE_DURATION = 24 * 60 * 60 * 1000
+        
+        const cachedData = localStorage.getItem(CACHE_KEY)
+        if (cachedData) {
+          try {
+            const { rooms, timestamp } = JSON.parse(cachedData)
+            const age = Date.now() - timestamp
+            if (age < CACHE_DURATION) {
+              setMyRooms(rooms)
+              return
+            }
+          } catch (e) {
+            console.error('Failed to parse cached rooms:', e)
+          }
+        }
+
         const settings = getServerSettings()
         const userResponse = await fetch('/api/screeps', {
           method: 'POST',
@@ -103,7 +120,13 @@ export function RoomControl() {
           
           if (roomsResponse.ok) {
             const roomsData = await roomsResponse.json()
-            setMyRooms(roomsData.data?.rooms || [])
+            const rooms = roomsData.data?.rooms || []
+            setMyRooms(rooms)
+            
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+              rooms,
+              timestamp: Date.now()
+            }))
           }
         }
       } catch (error) {
