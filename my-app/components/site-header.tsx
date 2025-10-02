@@ -22,16 +22,6 @@ export function SiteHeader({ onRefresh }: SiteHeaderProps) {
         />
         <h1 className="text-base font-medium">Screeps Analytics</h1>
         <div className="ml-auto flex items-center gap-2">
-          {onRefresh && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onRefresh}
-              title="Refresh data"
-            >
-              <IconRefresh className="size-5" />
-            </Button>
-          )}
           <ModeToggle />
           <SettingsDialog />
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
