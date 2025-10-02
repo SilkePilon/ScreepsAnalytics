@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { RoomVisual } from "@/components/room-visual"
+import { Progress } from "@/components/ui/progress"
+import { RoomVisual, calculateControllerProgress } from "@/components/room-visual"
 import { getServerSettings } from "@/lib/screeps-api"
 import { 
   IconHome, 
@@ -38,12 +39,14 @@ interface RoomObject {
   name?: string
   energy?: number
   energyCapacity?: number
+  store?: Record<string, number>
+  storeCapacity?: number
+  storeCapacityResource?: Record<string, number>
   hits?: number
   hitsMax?: number
   level?: number
   progress?: number
   progressTotal?: number
-  store?: Record<string, number>
   body?: Array<{ type: string; hits: number }>
 }
 
@@ -155,6 +158,12 @@ export function RoomControl() {
       const statsData = await statsResponse.json()
       const terrainData = await terrainResponse.json()
 
+      console.log('Room objects data:', objectsData.data)
+      console.log('Sample spawn:', objectsData.data?.objects?.find((o: RoomObject) => o.type === 'spawn'))
+      console.log('Sample extension:', objectsData.data?.objects?.find((o: RoomObject) => o.type === 'extension'))
+      console.log('Sample controller:', objectsData.data?.objects?.find((o: RoomObject) => o.type === 'controller'))
+      console.log('Room stats data:', statsData.data)
+
       setRoomData(objectsData.data)
       setRoomStats(statsData.data)
       setRoomTerrain(terrainData.data?.terrain?.[0]?.terrain || "")
@@ -214,8 +223,17 @@ export function RoomControl() {
 
     const energyStructures = [...roomSpawns, ...roomExtensions]
     energyStructures.forEach(obj => {
-      available += obj.energy || 0
-      capacity += obj.energyCapacity || 0
+      if (obj.store && obj.store.energy !== undefined) {
+        available += obj.store.energy
+        if (obj.storeCapacityResource && obj.storeCapacityResource.energy !== undefined) {
+          capacity += obj.storeCapacityResource.energy
+        } else if (obj.storeCapacity !== undefined) {
+          capacity += obj.storeCapacity
+        }
+      } else if (obj.energy !== undefined) {
+        available += obj.energy
+        capacity += obj.energyCapacity || 0
+      }
     })
 
     return { available, capacity }
@@ -455,6 +473,44 @@ export function RoomControl() {
                   </div>
                 </div>
 
+                {roomData && (() => {
+                  const controllerProgress = calculateControllerProgress(roomData.objects)
+                  return controllerProgress ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Room Controller Progress</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-medium">
+                              Room Controller Level {controllerProgress.level}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              {controllerProgress.progress.toLocaleString()} / {controllerProgress.total.toLocaleString()} ({controllerProgress.percentage.toFixed(1)}%)
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">ETA to Level {controllerProgress.level + 1}</p>
+                            <p className="text-sm font-medium">
+                              {controllerProgress.eta < 1 
+                                ? `${Math.round(controllerProgress.eta * 60)} min`
+                                : controllerProgress.eta < 24
+                                ? `${controllerProgress.eta.toFixed(1)} hrs`
+                                : `${(controllerProgress.eta / 24).toFixed(1)} days`
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <Progress value={controllerProgress.percentage} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          Remaining: {controllerProgress.remaining.toLocaleString()} energy
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : null
+                })()}
+
                 {roomData && (
                   <div>
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -465,6 +521,7 @@ export function RoomControl() {
                       objects={roomData.objects} 
                       terrain={roomTerrain}
                       selectedUserId={roomData.owner?._id}
+                      roomStats={roomStats || undefined}
                     />
                   </div>
                 )}
@@ -570,7 +627,10 @@ export function RoomControl() {
                                 <Badge variant="outline">x:{spawn.x} y:{spawn.y}</Badge>
                               </TableCell>
                               <TableCell>
-                                {spawn.energy}/{spawn.energyCapacity}
+                                {spawn.store?.energy !== undefined 
+                                  ? `${spawn.store.energy}/${spawn.storeCapacityResource?.energy || spawn.storeCapacity || 0}`
+                                  : `${spawn.energy || 0}/${spawn.energyCapacity || 0}`
+                                }
                               </TableCell>
                               <TableCell>
                                 <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
@@ -608,7 +668,10 @@ export function RoomControl() {
                                 <Badge variant="outline">x:{tower.x} y:{tower.y}</Badge>
                               </TableCell>
                               <TableCell>
-                                {tower.energy}/{tower.energyCapacity}
+                                {tower.store?.energy !== undefined 
+                                  ? `${tower.store.energy}/${tower.storeCapacityResource?.energy || tower.storeCapacity || 0}`
+                                  : `${tower.energy || 0}/${tower.energyCapacity || 0}`
+                                }
                               </TableCell>
                               <TableCell>
                                 <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">

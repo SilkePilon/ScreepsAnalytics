@@ -1,7 +1,10 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Progress } from "@/components/ui/progress"
 
 interface RoomObject {
   _id: string
@@ -9,16 +12,34 @@ interface RoomObject {
   x: number
   y: number
   user?: string
+  name?: string
   energy?: number
   energyCapacity?: number
+  store?: Record<string, number>
+  storeCapacity?: number
+  storeCapacityResource?: Record<string, number>
   hits?: number
   hitsMax?: number
+  level?: number
+  progress?: number
+  progressTotal?: number
 }
 
 interface RoomVisualProps {
   objects: RoomObject[]
   terrain?: string
   selectedUserId?: string
+  roomStats?: {
+    totals?: Record<string, number>
+  }
+}
+
+interface TooltipData {
+  x: number
+  y: number
+  content: string[]
+  screenX: number
+  screenY: number
 }
 
 const CELL_SIZE = 10
@@ -51,8 +72,135 @@ const TERRAIN_COLORS = {
   swamp: '#1a3a1a'
 }
 
-export function RoomVisual({ objects, terrain, selectedUserId }: RoomVisualProps) {
+export function calculateControllerProgress(objects: RoomObject[]) {
+  const controller = objects.find(obj => obj.type === 'controller')
+  
+  if (!controller || !controller.progress || !controller.level) {
+    return null
+  }
+
+  const level = controller.level
+  if (level >= 8) return null
+  
+  const progress = controller.progress
+  let progressTotal = controller.progressTotal
+  
+  if (!progressTotal) {
+    const CONTROLLER_LEVELS = [
+      20, 4500, 13500, 40500, 121500, 364500, 1093500
+    ]
+    progressTotal = CONTROLLER_LEVELS[level - 1]
+  }
+  
+  if (!progressTotal || progress > progressTotal * 2) {
+    return null
+  }
+
+  const percentage = (progress / progressTotal) * 100
+  const remaining = progressTotal - progress
+
+  const averageEnergyPerTick = 15
+  const ticksRemaining = remaining / averageEnergyPerTick
+  const hoursRemaining = (ticksRemaining * 3) / 3600
+
+  return {
+    level: level,
+    progress,
+    total: progressTotal,
+    percentage,
+    remaining,
+    eta: hoursRemaining
+  }
+}
+
+export function RoomVisual({ objects, terrain, selectedUserId, roomStats }: RoomVisualProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null)
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null)
+  const [highlightEnergy, setHighlightEnergy] = useState(false)
+  const [highlightDamaged, setHighlightDamaged] = useState(false)
+  const [highlightMyStructures, setHighlightMyStructures] = useState(false)
+
+  const getObjectsAtPosition = useCallback((x: number, y: number) => {
+    return objects.filter(obj => obj.x === x && obj.y === y)
+  }, [objects])
+
+  const getTerrainType = useCallback((x: number, y: number) => {
+    if (!terrain) return 'plain'
+    const index = y * ROOM_SIZE + x
+    const terrainCode = parseInt(terrain[index])
+    if (terrainCode & 1) return 'wall'
+    if (terrainCode & 2) return 'swamp'
+    return 'plain'
+  }, [terrain])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const canvasX = e.clientX - rect.left
+    const canvasY = e.clientY - rect.top
+
+    const cellX = Math.floor(canvasX / CELL_SIZE)
+    const cellY = Math.floor(canvasY / CELL_SIZE)
+
+    if (cellX >= 0 && cellX < ROOM_SIZE && cellY >= 0 && cellY < ROOM_SIZE) {
+      setHoveredCell({ x: cellX, y: cellY })
+
+      const objectsAtPos = getObjectsAtPosition(cellX, cellY)
+      const terrainType = getTerrainType(cellX, cellY)
+      const tooltipContent: string[] = []
+
+      tooltipContent.push(`Position: (${cellX}, ${cellY})`)
+      tooltipContent.push(`Terrain: ${terrainType}`)
+
+      if (objectsAtPos.length > 0) {
+        objectsAtPos.forEach(obj => {
+          tooltipContent.push(`---`)
+          tooltipContent.push(`Type: ${obj.type}`)
+          if (obj.name) tooltipContent.push(`Name: ${obj.name}`)
+          
+          if (obj.store?.energy !== undefined) {
+            const capacity = obj.storeCapacityResource?.energy || obj.storeCapacity || 0
+            tooltipContent.push(`Energy: ${obj.store.energy.toLocaleString()} / ${capacity.toLocaleString()}`)
+          } else if (obj.energy !== undefined && obj.energyCapacity !== undefined) {
+            tooltipContent.push(`Energy: ${obj.energy.toLocaleString()} / ${obj.energyCapacity.toLocaleString()}`)
+          }
+
+          if (obj.store && Object.keys(obj.store).length > 0) {
+            const otherResources = Object.entries(obj.store).filter(([key]) => key !== 'energy')
+            if (otherResources.length > 0) {
+              tooltipContent.push(`Resources:`)
+              otherResources.forEach(([resource, amount]) => {
+                tooltipContent.push(`  ${resource}: ${amount.toLocaleString()}`)
+              })
+            }
+          }
+
+          if (obj.hits !== undefined && obj.hitsMax !== undefined) {
+            tooltipContent.push(`Hits: ${obj.hits.toLocaleString()} / ${obj.hitsMax.toLocaleString()}`)
+          }
+        })
+      }
+
+      setTooltip({
+        x: cellX,
+        y: cellY,
+        content: tooltipContent,
+        screenX: e.clientX,
+        screenY: e.clientY
+      })
+    } else {
+      setHoveredCell(null)
+      setTooltip(null)
+    }
+  }, [getObjectsAtPosition, getTerrainType])
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredCell(null)
+    setTooltip(null)
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -103,7 +251,22 @@ export function RoomVisual({ objects, terrain, selectedUserId }: RoomVisualProps
       const isOwned = obj.user === selectedUserId || !obj.user
       const color = STRUCTURE_COLORS[obj.type] || '#adb5bd'
       
-      ctx.fillStyle = isOwned ? color : color + '80'
+      const hasEnergy = (obj.store?.energy && obj.store.energy > 0) || (obj.energy && obj.energy > 0)
+      const isDamaged = obj.hits && obj.hitsMax && obj.hits < obj.hitsMax
+      
+      let shouldHighlight = false
+      if (highlightEnergy && hasEnergy) shouldHighlight = true
+      if (highlightDamaged && isDamaged) shouldHighlight = true
+      if (highlightMyStructures && isOwned) shouldHighlight = true
+      
+      ctx.fillStyle = shouldHighlight ? color : (isOwned ? color : color + '80')
+      
+      if (shouldHighlight) {
+        ctx.shadowColor = color
+        ctx.shadowBlur = 10
+      } else {
+        ctx.shadowBlur = 0
+      }
       
       if (obj.type === 'creep') {
         ctx.beginPath()
@@ -140,6 +303,18 @@ export function RoomVisual({ objects, terrain, selectedUserId }: RoomVisualProps
           (CELL_SIZE - 2) * energyPercent,
           1
         )
+      } else if (obj.store?.energy !== undefined) {
+        const capacity = obj.storeCapacityResource?.energy || obj.storeCapacity || 0
+        if (capacity > 0) {
+          const energyPercent = obj.store.energy / capacity
+          ctx.fillStyle = '#ffd43b'
+          ctx.fillRect(
+            obj.x * CELL_SIZE + 1,
+            obj.y * CELL_SIZE + CELL_SIZE - 2,
+            (CELL_SIZE - 2) * energyPercent,
+            1
+          )
+        }
       }
 
       if (obj.hits && obj.hitsMax && obj.hits < obj.hitsMax) {
@@ -152,44 +327,115 @@ export function RoomVisual({ objects, terrain, selectedUserId }: RoomVisualProps
           1
         )
       }
+      
+      ctx.shadowBlur = 0
     })
-  }, [objects, terrain, selectedUserId])
+
+    if (hoveredCell) {
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.strokeRect(
+        hoveredCell.x * CELL_SIZE,
+        hoveredCell.y * CELL_SIZE,
+        CELL_SIZE,
+        CELL_SIZE
+      )
+    }
+  }, [objects, terrain, selectedUserId, hoveredCell, highlightEnergy, highlightDamaged, highlightMyStructures])
 
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="overflow-auto">
-          <canvas
-            ref={canvasRef}
-            width={ROOM_SIZE * CELL_SIZE}
-            height={ROOM_SIZE * CELL_SIZE}
-            className="border border-border"
-          />
-        </div>
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.spawn }} />
-            <span>Spawn</span>
+        <div className="flex gap-4 items-start justify-center">
+          <div className="overflow-auto relative">
+            <canvas
+              ref={canvasRef}
+              width={ROOM_SIZE * CELL_SIZE}
+              height={ROOM_SIZE * CELL_SIZE}
+              className="border border-border cursor-crosshair"
+              style={{ imageRendering: 'pixelated' }}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+            />
+            {tooltip && (
+              <div
+                className="fixed z-50 bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg border text-sm pointer-events-none"
+                style={{
+                  left: `${tooltip.screenX + 15}px`,
+                  top: `${tooltip.screenY + 15}px`,
+                  maxWidth: '300px'
+                }}
+              >
+                {tooltip.content.map((line, idx) => (
+                  <div key={idx} className={line === '---' ? 'border-t border-border my-1' : ''}>
+                    {line !== '---' && line}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.extension }} />
-            <span>Extension</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.tower }} />
-            <span>Tower</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.storage }} />
-            <span>Storage</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.controller }} />
-            <span>Controller</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#adb5bd' }} />
-            <span>Creep</span>
+          <div className="flex flex-col gap-2 text-xs min-w-[100px]">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.spawn }} />
+              <span>Spawn</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.extension }} />
+              <span>Extension</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.tower }} />
+              <span>Tower</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.storage }} />
+              <span>Storage</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.controller }} />
+              <span>Controller</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#adb5bd' }} />
+              <span>Creep</span>
+            </div>
+            
+            <div className="border-t border-border my-2" />
+            
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="highlight-energy"
+                  checked={highlightEnergy}
+                  onCheckedChange={(checked) => setHighlightEnergy(checked as boolean)}
+                />
+                <Label htmlFor="highlight-energy" className="text-xs cursor-pointer">
+                  Energy
+                </Label>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="highlight-damaged"
+                  checked={highlightDamaged}
+                  onCheckedChange={(checked) => setHighlightDamaged(checked as boolean)}
+                />
+                <Label htmlFor="highlight-damaged" className="text-xs cursor-pointer">
+                  Damaged
+                </Label>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Checkbox 
+                  id="highlight-mine"
+                  checked={highlightMyStructures}
+                  onCheckedChange={(checked) => setHighlightMyStructures(checked as boolean)}
+                />
+                <Label htmlFor="highlight-mine" className="text-xs cursor-pointer">
+                  My Structures
+                </Label>
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>
