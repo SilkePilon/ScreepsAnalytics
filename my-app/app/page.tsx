@@ -21,6 +21,32 @@ export default function Page() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [analyticsLoaded, setAnalyticsLoaded] = React.useState(false)
+  const [showLeftShadow, setShowLeftShadow] = React.useState(false)
+  const [showRightShadow, setShowRightShadow] = React.useState(false)
+  const scrollRef = React.useRef<HTMLDivElement>(null)
+
+  const handleScroll = React.useCallback(() => {
+    const element = scrollRef.current
+    if (!element) return
+
+    const { scrollLeft, scrollWidth, clientWidth } = element
+    setShowLeftShadow(scrollLeft > 0)
+    setShowRightShadow(scrollLeft < scrollWidth - clientWidth - 1)
+  }, [])
+
+  React.useEffect(() => {
+    const element = scrollRef.current
+    if (!element) return
+
+    handleScroll()
+    element.addEventListener('scroll', handleScroll)
+    window.addEventListener('resize', handleScroll)
+
+    return () => {
+      element.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
+    }
+  }, [handleScroll])
 
   const loadData = React.useCallback(async () => {
     try {
@@ -69,13 +95,23 @@ export default function Page() {
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               
               <Tabs defaultValue="charts" className="px-4 lg:px-6">
-                <TabsList className="grid w-full max-w-4xl grid-cols-5">
-                  <TabsTrigger value="charts">Analytics</TabsTrigger>
-                  <TabsTrigger value="players">Players</TabsTrigger>
-                  <TabsTrigger value="actions">Actions</TabsTrigger>
-                  <TabsTrigger value="rooms">Rooms</TabsTrigger>
-                  <TabsTrigger value="table">Leaderboard</TabsTrigger>
-                </TabsList>
+                <div className="relative">
+                  <div 
+                    className={`absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10 lg:hidden transition-opacity duration-300 ${showLeftShadow ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                  <div 
+                    className={`absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10 lg:hidden transition-opacity duration-300 ${showRightShadow ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                  <div ref={scrollRef} className="overflow-x-auto scrollbar-hide">
+                    <TabsList className="grid w-full max-w-4xl grid-cols-5 min-w-max">
+                      <TabsTrigger value="charts">Analytics</TabsTrigger>
+                      <TabsTrigger value="players">Players</TabsTrigger>
+                      <TabsTrigger value="actions">Actions</TabsTrigger>
+                      <TabsTrigger value="rooms">Rooms</TabsTrigger>
+                      <TabsTrigger value="table">Leaderboard</TabsTrigger>
+                    </TabsList>
+                  </div>
+                </div>
                 
                 <TabsContent value="charts" className="mt-6">
                   {!analyticsLoaded ? (

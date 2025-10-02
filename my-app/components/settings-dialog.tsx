@@ -21,11 +21,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export function SettingsDialog() {
   const [open, setOpen] = React.useState(false)
+  const isMobile = useIsMobile()
   const [settings, setSettings] = React.useState<ServerSettings>({
     apiUrl: 'http://127.0.0.1:3000',
     username: '',
@@ -67,6 +79,123 @@ export function SettingsDialog() {
     }
   }
 
+  const SettingsForm = () => (
+    <div className="flex flex-col gap-4 py-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="apiUrl">API URL</Label>
+        <Input
+          id="apiUrl"
+          placeholder="http://127.0.0.1:3000"
+          value={settings.apiUrl}
+          onChange={(e) =>
+            setSettings({ ...settings, apiUrl: e.target.value })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          The base URL of your Screeps server (without /api)
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="username">Username</Label>
+        <Input
+          id="username"
+          placeholder="Your username"
+          value={settings.username}
+          onChange={(e) =>
+            setSettings({ ...settings, username: e.target.value })
+          }
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Your password"
+          value={settings.password}
+          onChange={(e) =>
+            setSettings({ ...settings, password: e.target.value })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          Your Screeps server password
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="shard">Shard Name</Label>
+        <Input
+          id="shard"
+          placeholder="shard0"
+          value={settings.shard}
+          onChange={(e) =>
+            setSettings({ ...settings, shard: e.target.value })
+          }
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="polling">Polling Interval (ms)</Label>
+        <Input
+          id="polling"
+          type="number"
+          placeholder="30000"
+          value={settings.pollingInterval}
+          onChange={(e) =>
+            setSettings({
+              ...settings,
+              pollingInterval: parseInt(e.target.value) || 30000,
+            })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          How often to refresh data (minimum 10000ms)
+        </p>
+      </div>
+    </div>
+  )
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <IconSettings className="size-5" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Server Settings</DrawerTitle>
+            <DrawerDescription>
+              Configure your Screeps private server connection
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="px-4">
+            <SettingsForm />
+          </div>
+          <DrawerFooter>
+            <Button
+              variant="outline"
+              onClick={handleTest}
+              disabled={testing}
+            >
+              {testing ? 'Testing...' : 'Test Connection'}
+            </Button>
+            <Button onClick={handleSave}>
+              Save Settings
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -82,81 +211,7 @@ export function SettingsDialog() {
             Configure your Screeps private server connection
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4 py-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="apiUrl">API URL</Label>
-            <Input
-              id="apiUrl"
-              placeholder="http://127.0.0.1:3000"
-              value={settings.apiUrl}
-              onChange={(e) =>
-                setSettings({ ...settings, apiUrl: e.target.value })
-              }
-            />
-            <p className="text-muted-foreground text-xs">
-              The base URL of your Screeps server (without /api)
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              placeholder="Your username"
-              value={settings.username}
-              onChange={(e) =>
-                setSettings({ ...settings, username: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Your password"
-              value={settings.password}
-              onChange={(e) =>
-                setSettings({ ...settings, password: e.target.value })
-              }
-            />
-            <p className="text-muted-foreground text-xs">
-              Your Screeps server password
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="shard">Shard Name</Label>
-            <Input
-              id="shard"
-              placeholder="shard0"
-              value={settings.shard}
-              onChange={(e) =>
-                setSettings({ ...settings, shard: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="polling">Polling Interval (ms)</Label>
-            <Input
-              id="polling"
-              type="number"
-              placeholder="30000"
-              value={settings.pollingInterval}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  pollingInterval: parseInt(e.target.value) || 30000,
-                })
-              }
-            />
-            <p className="text-muted-foreground text-xs">
-              How often to refresh data (minimum 10000ms)
-            </p>
-          </div>
-        </div>
+        <SettingsForm />
         <DialogFooter>
           <Button
             variant="outline"
