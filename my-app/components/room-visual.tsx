@@ -346,13 +346,13 @@ export function RoomVisual({ objects, terrain, selectedUserId, roomStats }: Room
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="flex gap-4 items-start justify-center">
-          <div className="overflow-auto relative">
+        <div className="flex flex-col md:flex-row gap-4 items-start justify-center">
+          <div className="overflow-auto relative w-full md:w-auto flex justify-center">
             <canvas
               ref={canvasRef}
               width={ROOM_SIZE * CELL_SIZE}
               height={ROOM_SIZE * CELL_SIZE}
-              className="border border-border cursor-crosshair"
+              className="border border-border cursor-crosshair max-w-full h-auto"
               style={{ imageRendering: 'pixelated' }}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
@@ -374,7 +374,7 @@ export function RoomVisual({ objects, terrain, selectedUserId, roomStats }: Room
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-2 text-xs min-w-[100px]">
+          <div className="flex flex-row md:flex-col gap-4 md:gap-2 text-xs min-w-full md:min-w-[100px] flex-wrap md:flex-nowrap justify-center md:justify-start">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded" style={{ backgroundColor: STRUCTURE_COLORS.spawn }} />
               <span>Spawn</span>
@@ -400,9 +400,9 @@ export function RoomVisual({ objects, terrain, selectedUserId, roomStats }: Room
               <span>Creep</span>
             </div>
             
-            <div className="border-t border-border my-2" />
+            <div className="border-t md:border-t border-border my-2 w-full md:w-auto" />
             
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-row md:flex-col gap-4 md:gap-2 flex-wrap md:flex-nowrap justify-center md:justify-start">
               <div className="flex items-center gap-2">
                 <Checkbox 
                   id="highlight-energy"

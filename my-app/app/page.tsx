@@ -18,8 +18,9 @@ import { toast } from "sonner"
 
 export default function Page() {
   const [players, setPlayers] = React.useState<UserStats[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [analyticsLoaded, setAnalyticsLoaded] = React.useState(false)
 
   const loadData = React.useCallback(async () => {
     try {
@@ -28,6 +29,7 @@ export default function Page() {
       const settings = getServerSettings()
       const data = await fetchLeaderboard(settings, 100)
       setPlayers(data)
+      setAnalyticsLoaded(true)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load data'
       setError(message)
@@ -38,14 +40,16 @@ export default function Page() {
   }, [])
 
   React.useEffect(() => {
-    loadData()
-
     const settings = getServerSettings()
     const interval = Math.max(settings.pollingInterval, 10000)
-    const timer = setInterval(loadData, interval)
+    const timer = setInterval(() => {
+      if (analyticsLoaded) {
+        loadData()
+      }
+    }, interval)
 
     return () => clearInterval(timer)
-  }, [loadData])
+  }, [loadData, analyticsLoaded])
 
   return (
     <SidebarProvider
@@ -74,7 +78,18 @@ export default function Page() {
                 </TabsList>
                 
                 <TabsContent value="charts" className="mt-6">
-                  {loading && players.length === 0 ? (
+                  {!analyticsLoaded ? (
+                    <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
+                      <p className="text-muted-foreground">Analytics not loaded. Click below to load data.</p>
+                      <button
+                        onClick={loadData}
+                        disabled={loading}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {loading ? 'Loading...' : 'Load Analytics'}
+                      </button>
+                    </div>
+                  ) : loading && players.length === 0 ? (
                     <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
                       <p className="text-muted-foreground">Loading chart data...</p>
                     </div>
@@ -83,18 +98,40 @@ export default function Page() {
                       <p className="text-destructive">{error}</p>
                       <button
                         onClick={loadData}
-                        className="text-primary hover:underline"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                       >
                         Try again
                       </button>
                     </div>
                   ) : (
-                    <ChartsGrid players={players} />
+                    <div className="space-y-4">
+                      <div className="flex justify-end">
+                        <button
+                          onClick={loadData}
+                          disabled={loading}
+                          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {loading ? 'Refreshing...' : 'Refresh Analytics'}
+                        </button>
+                      </div>
+                      <ChartsGrid players={players} />
+                    </div>
                   )}
                 </TabsContent>
                 
                 <TabsContent value="players" className="mt-6">
-                  {loading && players.length === 0 ? (
+                  {!analyticsLoaded ? (
+                    <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
+                      <p className="text-muted-foreground">Analytics not loaded. Load analytics first to view players.</p>
+                      <button
+                        onClick={loadData}
+                        disabled={loading}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {loading ? 'Loading...' : 'Load Analytics'}
+                      </button>
+                    </div>
+                  ) : loading && players.length === 0 ? (
                     <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
                       <p className="text-muted-foreground">Loading players...</p>
                     </div>
@@ -103,7 +140,7 @@ export default function Page() {
                       <p className="text-destructive">{error}</p>
                       <button
                         onClick={loadData}
-                        className="text-primary hover:underline"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                       >
                         Try again
                       </button>
@@ -122,7 +159,18 @@ export default function Page() {
                 </TabsContent>
                 
                 <TabsContent value="table" className="mt-6">
-                  {loading && players.length === 0 ? (
+                  {!analyticsLoaded ? (
+                    <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
+                      <p className="text-muted-foreground">Analytics not loaded. Load analytics first to view leaderboard.</p>
+                      <button
+                        onClick={loadData}
+                        disabled={loading}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {loading ? 'Loading...' : 'Load Analytics'}
+                      </button>
+                    </div>
+                  ) : loading && players.length === 0 ? (
                     <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
                       <p className="text-muted-foreground">Loading player data...</p>
                     </div>
@@ -131,7 +179,7 @@ export default function Page() {
                       <p className="text-destructive">{error}</p>
                       <button
                         onClick={loadData}
-                        className="text-primary hover:underline"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                       >
                         Try again
                       </button>
