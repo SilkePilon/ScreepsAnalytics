@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { recordAuthenticatedPlayer, recordConsoleAction } from '@/lib/supabase'
 
 let authToken: string | null = null
 

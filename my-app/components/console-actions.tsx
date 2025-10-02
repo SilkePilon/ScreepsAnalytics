@@ -10,12 +10,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { IconPlus, IconTrash, IconPlayerPlay } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { getServerSettings } from "@/lib/screeps-api"
+import { supabase, recordAuthenticatedPlayer } from "@/lib/supabase"
 
 interface ConsoleAction {
-  id: string
+  id?: string
   name: string
   emoji: string
   command: string
+  player_name?: string
+  server_url?: string
 }
 
 const EMOJI_OPTIONS = [
@@ -47,57 +50,135 @@ export function ConsoleActions() {
   const [editingAction, setEditingAction] = useState<ConsoleAction | null>(null)
   const [formData, setFormData] = useState({ name: "", emoji: "🚀", command: "" })
   const [executing, setExecuting] = useState<string | null>(null)
+  const [playerName, setPlayerName] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem("console-actions")
-    if (stored) {
+    const initializeAuth = async () => {
       try {
-        setActions(JSON.parse(stored))
-      } catch (e) {
-        console.error("Failed to parse console actions", e)
+        const settings = getServerSettings()
+        
+        const response = await fetch('/api/screeps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'test-connection',
+            settings
+          })
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          const username = result.data?.username
+          
+          if (username) {
+            setPlayerName(username)
+            await recordAuthenticatedPlayer(username, settings.apiUrl)
+            await loadActions(username)
+          } else {
+            toast.error("Please configure your server credentials first")
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize:', error)
+        toast.error("Failed to authenticate. Please check your server settings.")
+      } finally {
+        setLoading(false)
       }
     }
+
+    initializeAuth()
   }, [])
 
-  const saveActions = (newActions: ConsoleAction[]) => {
-    setActions(newActions)
-    localStorage.setItem("console-actions", JSON.stringify(newActions))
+  const loadActions = async (username: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('console_actions')
+        .select('*')
+        .eq('player_name', username)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setActions(data || [])
+    } catch (error) {
+      console.error('Failed to load actions:', error)
+      toast.error("Failed to load console actions")
+    }
   }
 
-  const handleSaveAction = () => {
+  const handleSaveAction = async () => {
     if (!formData.name.trim() || !formData.command.trim()) {
       toast.error("Name and command are required")
       return
     }
 
-    if (editingAction) {
-      const updated = actions.map(a => 
-        a.id === editingAction.id 
-          ? { ...editingAction, ...formData }
-          : a
-      )
-      saveActions(updated)
-      toast.success("Action updated")
-    } else {
-      const newAction: ConsoleAction = {
-        id: Date.now().toString(),
-        ...formData,
-      }
-      saveActions([...actions, newAction])
-      toast.success("Action created")
+    if (!playerName) {
+      toast.error("Not authenticated. Please configure server settings.")
+      return
     }
 
-    setIsDialogOpen(false)
-    setEditingAction(null)
-    setFormData({ name: "", emoji: "🚀", command: "" })
+    try {
+      const settings = getServerSettings()
+      
+      if (editingAction && editingAction.id) {
+        const { error } = await supabase
+          .from('console_actions')
+          .update({
+            name: formData.name,
+            emoji: formData.emoji,
+            command: formData.command
+          })
+          .eq('id', editingAction.id)
+
+        if (error) throw error
+        toast.success("Action updated")
+      } else {
+        const { error } = await supabase
+          .from('console_actions')
+          .insert({
+            player_name: playerName,
+            server_url: settings.apiUrl,
+            name: formData.name,
+            emoji: formData.emoji,
+            command: formData.command
+          })
+
+        if (error) throw error
+        toast.success("Action created")
+      }
+
+      await loadActions(playerName)
+      setIsDialogOpen(false)
+      setEditingAction(null)
+      setFormData({ name: "", emoji: "🚀", command: "" })
+    } catch (error) {
+      console.error('Failed to save action:', error)
+      toast.error("Failed to save action")
+    }
   }
 
-  const handleDeleteAction = (id: string) => {
-    saveActions(actions.filter(a => a.id !== id))
-    toast.success("Action deleted")
+  const handleDeleteAction = async (id: string) => {
+    if (!playerName) return
+
+    try {
+      const { error } = await supabase
+        .from('console_actions')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      
+      await loadActions(playerName)
+      toast.success("Action deleted")
+    } catch (error) {
+      console.error('Failed to delete action:', error)
+      toast.error("Failed to delete action")
+    }
   }
 
   const handleExecuteAction = async (action: ConsoleAction) => {
+    if (!action.id) return
+    
     setExecuting(action.id)
     try {
       const settings = getServerSettings()
@@ -144,11 +225,25 @@ export function ConsoleActions() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Console Actions</h2>
-          <p className="text-muted-foreground">Create custom buttons to execute game console commands</p>
-        </div>
+      {loading ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <p className="text-muted-foreground">Loading console actions...</p>
+          </CardContent>
+        </Card>
+      ) : !playerName ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground mb-4">Please configure your server credentials in Settings</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Console Actions</h2>
+              <p className="text-muted-foreground">Create custom buttons to execute game console commands (Saved for {playerName})</p>
+            </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openNewDialog}>
@@ -239,14 +334,16 @@ export function ConsoleActions() {
                 <Button variant="outline" onClick={() => openEditDialog(action)}>
                   Edit
                 </Button>
-                <Button variant="destructive" size="icon" onClick={() => handleDeleteAction(action.id)}>
+                <Button variant="destructive" size="icon" onClick={() => action.id && handleDeleteAction(action.id)}>
                   <IconTrash className="size-4" />
                 </Button>
               </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+          </Card>
+        ))}
+      </div>
+    )}
+    </>
+  )}
     </div>
   )
 }

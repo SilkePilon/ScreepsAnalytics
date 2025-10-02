@@ -12,21 +12,19 @@ import {
 } from "@/lib/screeps-api"
 import { Button } from "@/components/ui/button"
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useIsMobile } from "@/hooks/use-mobile"
 
 export function SettingsDialog() {
-  const isMobile = useIsMobile()
   const [open, setOpen] = React.useState(false)
   const [settings, setSettings] = React.useState<ServerSettings>({
     apiUrl: 'http://127.0.0.1:3000',
@@ -70,22 +68,22 @@ export function SettingsDialog() {
   }
 
   return (
-    <Drawer direction={isMobile ? "bottom" : "right"} open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button variant="ghost" size="icon">
           <IconSettings className="size-5" />
           <span className="sr-only">Settings</span>
         </Button>
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>Server Settings</DrawerTitle>
-          <DrawerDescription>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Server Settings</DialogTitle>
+          <DialogDescription>
             Configure your Screeps private server connection
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4">
-          <div className="flex flex-col gap-3">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="apiUrl">API URL</Label>
             <Input
               id="apiUrl"
@@ -100,7 +98,7 @@ export function SettingsDialog() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="username">Username</Label>
             <Input
               id="username"
@@ -112,7 +110,7 @@ export function SettingsDialog() {
             />
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
@@ -128,7 +126,7 @@ export function SettingsDialog() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="shard">Shard Name</Label>
             <Input
               id="shard"
@@ -140,7 +138,7 @@ export function SettingsDialog() {
             />
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="polling">Polling Interval (ms)</Label>
             <Input
               id="polling"
@@ -159,25 +157,19 @@ export function SettingsDialog() {
             </p>
           </div>
         </div>
-        <DrawerFooter className="flex-row gap-2">
+        <DialogFooter>
           <Button
             variant="outline"
             onClick={handleTest}
             disabled={testing}
-            className="flex-1"
           >
             {testing ? 'Testing...' : 'Test Connection'}
           </Button>
-          <Button onClick={handleSave} className="flex-1">
+          <Button onClick={handleSave}>
             Save Settings
           </Button>
-          <DrawerClose asChild>
-            <Button variant="outline" size="icon">
-              <IconX />
-            </Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

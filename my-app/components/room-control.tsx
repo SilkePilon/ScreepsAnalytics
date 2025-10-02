@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RoomVisual, calculateControllerProgress } from "@/components/room-visual"
 import { getServerSettings } from "@/lib/screeps-api"
 import { 
@@ -204,6 +205,18 @@ export function RoomControl() {
   }
 
   const getCreeps = () => getObjectsByType('creep')
+  const getMyCreeps = () => {
+    if (!roomData) return []
+    const controller = getController()
+    const roomOwner = controller?.user
+    return getCreeps().filter(creep => creep.user === roomOwner)
+  }
+  const getHostileCreeps = () => {
+    if (!roomData) return []
+    const controller = getController()
+    const roomOwner = controller?.user
+    return getCreeps().filter(creep => creep.user !== roomOwner)
+  }
   const getSpawns = () => getObjectsByType('spawn')
   const getTowers = () => getObjectsByType('tower')
   const getExtensions = () => getObjectsByType('extension')
@@ -259,12 +272,13 @@ export function RoomControl() {
   const energy = calculateTotalEnergy()
   const creeps = getCreeps()
   const resources = getTotalResources()
+  const isMyRoom = myRooms.includes(selectedRoom)
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold">Room Control</h2>
-        <p className="text-muted-foreground">Monitor and control your rooms</p>
+        <p className="text-muted-foreground">{isMyRoom ? 'Monitor and control your rooms' : 'View room information'}</p>
       </div>
 
       <div className="flex gap-2">
@@ -360,7 +374,7 @@ export function RoomControl() {
                     </Button>
                   </div>
                 </div>
-                <CardDescription>Room information and statistics</CardDescription>
+                <CardDescription>{isMyRoom ? 'Room information and statistics' : 'Viewing room information'}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -530,13 +544,148 @@ export function RoomControl() {
           </TabsContent>
 
           <TabsContent value="creeps" className="space-y-4">
+            {getHostileCreeps().length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-red-500">Hostile Creeps in {selectedRoom}</CardTitle>
+                  <CardDescription>Enemy creeps detected ({getHostileCreeps().length} hostile)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Body Parts</TableHead>
+                        <TableHead>Hits</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {getHostileCreeps().map((creep) => (
+                        <TableRow key={creep._id} className="bg-red-50 dark:bg-red-950/20">
+                          <TableCell className="font-medium">{creep.name || 'Unnamed'}</TableCell>
+                          <TableCell>
+                            <Badge variant="destructive" className="text-xs">{creep.user || 'Unknown'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">x:{creep.x} y:{creep.y}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {creep.body ? (
+                              <TooltipProvider>
+                                <div className="flex gap-1 flex-wrap">
+                                  {creep.body.slice(0, 10).map((part, idx) => {
+                                    const colors: Record<string, string> = {
+                                      work: '#ffe56d',
+                                      move: '#a9b7c6',
+                                      carry: '#777',
+                                      attack: '#f93842',
+                                      ranged_attack: '#5d80b2',
+                                      heal: '#65fd62',
+                                      claim: '#b99cfb',
+                                      tough: '#fff'
+                                    }
+                                    const bgColor = colors[part.type.toLowerCase()] || '#999'
+                                    const textColor = ['tough', 'work', 'heal'].includes(part.type.toLowerCase()) ? '#000' : '#fff'
+                                    
+                                    return (
+                                      <Badge 
+                                        key={idx} 
+                                        variant="secondary" 
+                                        className="text-xs font-semibold"
+                                        style={{ 
+                                          backgroundColor: bgColor,
+                                          color: textColor,
+                                          border: 'none'
+                                        }}
+                                      >
+                                        {part.type.toUpperCase()}
+                                      </Badge>
+                                    )
+                                  })}
+                                  {creep.body.length > 10 && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge 
+                                          variant="secondary" 
+                                          className="text-xs font-semibold cursor-help"
+                                          style={{ 
+                                            backgroundColor: '#444',
+                                            color: '#fff',
+                                            border: 'none'
+                                          }}
+                                        >
+                                          +{creep.body.length - 10}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom" className="max-w-md">
+                                        <div className="flex gap-1 flex-wrap">
+                                          {creep.body.slice(10).map((part, idx) => {
+                                            const colors: Record<string, string> = {
+                                              work: '#ffe56d',
+                                              move: '#a9b7c6',
+                                              carry: '#777',
+                                              attack: '#f93842',
+                                              ranged_attack: '#5d80b2',
+                                              heal: '#65fd62',
+                                              claim: '#b99cfb',
+                                              tough: '#fff'
+                                            }
+                                            const bgColor = colors[part.type.toLowerCase()] || '#999'
+                                            const textColor = ['tough', 'work', 'heal'].includes(part.type.toLowerCase()) ? '#000' : '#fff'
+                                            
+                                            return (
+                                              <Badge 
+                                                key={idx} 
+                                                variant="secondary" 
+                                                className="text-xs font-semibold"
+                                                style={{ 
+                                                  backgroundColor: bgColor,
+                                                  color: textColor,
+                                                  border: 'none'
+                                                }}
+                                              >
+                                                {part.type.toUpperCase()}
+                                              </Badge>
+                                            )
+                                          })}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              </TooltipProvider>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-red-500"
+                                  style={{ width: `${creep.hits && creep.hitsMax ? (creep.hits / creep.hitsMax) * 100 : 0}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {creep.hits?.toLocaleString()}/{creep.hitsMax?.toLocaleString()}
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
-                <CardTitle>Creeps in {selectedRoom}</CardTitle>
-                <CardDescription>View and manage your creeps ({creeps.length} total)</CardDescription>
+                <CardTitle>{isMyRoom ? 'My Creeps in' : 'Creeps in'} {selectedRoom}</CardTitle>
+                <CardDescription>{isMyRoom ? 'View and manage your creeps' : 'Creeps in this room'} ({getMyCreeps().length} total)</CardDescription>
               </CardHeader>
               <CardContent>
-                {creeps.length === 0 ? (
+                {getMyCreeps().length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">No creeps found in this room</p>
                 ) : (
                   <Table>
@@ -549,7 +698,7 @@ export function RoomControl() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {creeps.map((creep) => (
+                      {getMyCreeps().map((creep) => (
                         <TableRow key={creep._id}>
                           <TableCell className="font-medium">{creep.name || 'Unnamed'}</TableCell>
                           <TableCell>
@@ -557,21 +706,89 @@ export function RoomControl() {
                           </TableCell>
                           <TableCell>
                             {creep.body ? (
-                              <div className="flex gap-1 flex-wrap">
-                                {creep.body.reduce((acc, part) => {
-                                  const existing = acc.find(p => p.type === part.type)
-                                  if (existing) {
-                                    existing.count++
-                                  } else {
-                                    acc.push({ type: part.type, count: 1 })
-                                  }
-                                  return acc
-                                }, [] as Array<{ type: string; count: number }>).map((part, idx) => (
-                                  <Badge key={idx} variant="secondary" className="text-xs">
-                                    {part.type}: {part.count}
-                                  </Badge>
-                                ))}
-                              </div>
+                              <TooltipProvider>
+                                <div className="flex gap-1 flex-wrap">
+                                  {creep.body.slice(0, 10).map((part, idx) => {
+                                    const colors: Record<string, string> = {
+                                      work: '#ffe56d',
+                                      move: '#a9b7c6',
+                                      carry: '#777',
+                                      attack: '#f93842',
+                                      ranged_attack: '#5d80b2',
+                                      heal: '#65fd62',
+                                      claim: '#b99cfb',
+                                      tough: '#fff'
+                                    }
+                                    const bgColor = colors[part.type.toLowerCase()] || '#999'
+                                    const textColor = ['tough', 'work', 'heal'].includes(part.type.toLowerCase()) ? '#000' : '#fff'
+                                    
+                                    return (
+                                      <Badge 
+                                        key={idx} 
+                                        variant="secondary" 
+                                        className="text-xs font-semibold"
+                                        style={{ 
+                                          backgroundColor: bgColor,
+                                          color: textColor,
+                                          border: 'none'
+                                        }}
+                                      >
+                                        {part.type.toUpperCase()}
+                                      </Badge>
+                                    )
+                                  })}
+                                  {creep.body.length > 10 && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge 
+                                          variant="secondary" 
+                                          className="text-xs font-semibold cursor-help"
+                                          style={{ 
+                                            backgroundColor: '#444',
+                                            color: '#fff',
+                                            border: 'none'
+                                          }}
+                                        >
+                                          +{creep.body.length - 10}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom" className="max-w-md">
+                                        <div className="flex gap-1 flex-wrap">
+                                          {creep.body.slice(10).map((part, idx) => {
+                                            const colors: Record<string, string> = {
+                                              work: '#ffe56d',
+                                              move: '#a9b7c6',
+                                              carry: '#777',
+                                              attack: '#f93842',
+                                              ranged_attack: '#5d80b2',
+                                              heal: '#65fd62',
+                                              claim: '#b99cfb',
+                                              tough: '#fff'
+                                            }
+                                            const bgColor = colors[part.type.toLowerCase()] || '#999'
+                                            const textColor = ['tough', 'work', 'heal'].includes(part.type.toLowerCase()) ? '#000' : '#fff'
+                                            
+                                            return (
+                                              <Badge 
+                                                key={idx} 
+                                                variant="secondary" 
+                                                className="text-xs font-semibold"
+                                                style={{ 
+                                                  backgroundColor: bgColor,
+                                                  color: textColor,
+                                                  border: 'none'
+                                                }}
+                                              >
+                                                {part.type.toUpperCase()}
+                                              </Badge>
+                                            )
+                                          })}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
+                              </TooltipProvider>
                             ) : '-'}
                           </TableCell>
                           <TableCell>
@@ -596,131 +813,239 @@ export function RoomControl() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="structures" className="space-y-4">
+          <TabsContent value="structures" className="space-y-3">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>Structures in {selectedRoom}</CardTitle>
-                <CardDescription>View room structures and their status</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {getSpawns().length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-2 flex items-center gap-2">
-                        <IconBuildingSkyscraper className="size-4" />
-                        Spawns ({getSpawns().length})
-                      </h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Position</TableHead>
-                            <TableHead>Energy</TableHead>
-                            <TableHead>Hits</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {getSpawns().map((spawn) => (
-                            <TableRow key={spawn._id}>
-                              <TableCell className="font-medium">{spawn.name}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline">x:{spawn.x} y:{spawn.y}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                {spawn.store?.energy !== undefined 
-                                  ? `${spawn.store.energy}/${spawn.storeCapacityResource?.energy || spawn.storeCapacity || 0}`
-                                  : `${spawn.energy || 0}/${spawn.energyCapacity || 0}`
-                                }
-                              </TableCell>
-                              <TableCell>
-                                <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-green-500"
-                                    style={{ width: `${spawn.hits && spawn.hitsMax ? (spawn.hits / spawn.hitsMax) * 100 : 0}%` }}
-                                  />
+              <CardContent className="space-y-4">
+                {getSpawns().length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <IconBuildingSkyscraper className="size-4" />
+                      Spawns ({getSpawns().length})
+                    </h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Position</TableHead>
+                          <TableHead>Energy</TableHead>
+                          <TableHead>Health</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getSpawns().map((spawn) => (
+                          <TableRow key={spawn._id}>
+                            <TableCell className="font-medium">{spawn.name}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">x:{spawn.x} y:{spawn.y}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <span className="text-yellow-500">⚡</span> {spawn.store?.energy !== undefined ? spawn.store.energy : spawn.energy || 0}/{spawn.storeCapacityResource?.energy || spawn.storeCapacity || spawn.energyCapacity || 0}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${spawn.hits && spawn.hitsMax ? (spawn.hits / spawn.hitsMax) * 100 : 0}%` }} />
                                 </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-
-                  {getTowers().length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-2 flex items-center gap-2">
-                        <IconFlame className="size-4" />
-                        Towers ({getTowers().length})
-                      </h3>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Position</TableHead>
-                            <TableHead>Energy</TableHead>
-                            <TableHead>Hits</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {getTowers().map((tower) => (
-                            <TableRow key={tower._id}>
-                              <TableCell>
-                                <Badge variant="outline">x:{tower.x} y:{tower.y}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                {tower.store?.energy !== undefined 
-                                  ? `${tower.store.energy}/${tower.storeCapacityResource?.energy || tower.storeCapacity || 0}`
-                                  : `${tower.energy || 0}/${tower.energyCapacity || 0}`
-                                }
-                              </TableCell>
-                              <TableCell>
-                                <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-green-500"
-                                    style={{ width: `${tower.hits && tower.hitsMax ? (tower.hits / tower.hitsMax) * 100 : 0}%` }}
-                                  />
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-
-                  {getStorages().length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-2 flex items-center gap-2">
-                        <IconBox className="size-4" />
-                        Storage ({getStorages().length})
-                      </h3>
-                      <div className="grid gap-2">
-                        {getStorages().map((storage) => (
-                          <Card key={storage._id}>
-                            <CardContent className="pt-4">
-                              <div className="flex justify-between items-center mb-2">
-                                <Badge variant="outline">x:{storage.x} y:{storage.y}</Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  {storage.store ? Object.values(storage.store).reduce((a, b) => a + b, 0).toLocaleString() : 0} total
-                                </span>
+                                <span className="text-xs text-muted-foreground">{((spawn.hits && spawn.hitsMax ? (spawn.hits / spawn.hitsMax) * 100 : 0)).toFixed(0)}%</span>
                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {getTowers().length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <IconFlame className="size-4" />
+                      Towers ({getTowers().length})
+                    </h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Position</TableHead>
+                          <TableHead>Energy</TableHead>
+                          <TableHead>Health</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getTowers().map((tower) => (
+                          <TableRow key={tower._id}>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">x:{tower.x} y:{tower.y}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <span className="text-yellow-500">⚡</span> {tower.store?.energy !== undefined ? tower.store.energy : tower.energy || 0}/{tower.storeCapacityResource?.energy || tower.storeCapacity || tower.energyCapacity || 0}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${tower.hits && tower.hitsMax ? (tower.hits / tower.hitsMax) * 100 : 0}%` }} />
+                                </div>
+                                <span className="text-xs text-muted-foreground">{((tower.hits && tower.hitsMax ? (tower.hits / tower.hitsMax) * 100 : 0)).toFixed(0)}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {getExtensions().length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <IconBolt className="size-4" />
+                      Extensions ({getExtensions().length})
+                    </h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Position</TableHead>
+                          <TableHead>Energy</TableHead>
+                          <TableHead>Health</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getExtensions().map((ext) => (
+                          <TableRow key={ext._id}>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">x:{ext.x} y:{ext.y}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <span className="text-yellow-500">⚡</span> {ext.store?.energy !== undefined ? ext.store.energy : ext.energy || 0}/{ext.storeCapacityResource?.energy || ext.storeCapacity || ext.energyCapacity || 0}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${ext.hits && ext.hitsMax ? (ext.hits / ext.hitsMax) * 100 : 0}%` }} />
+                                </div>
+                                <span className="text-xs text-muted-foreground">{((ext.hits && ext.hitsMax ? (ext.hits / ext.hitsMax) * 100 : 0)).toFixed(0)}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {getStorages().length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <IconBox className="size-4" />
+                      Storage ({getStorages().length})
+                    </h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Position</TableHead>
+                          <TableHead>Resources</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>Health</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getStorages().map((storage) => (
+                          <TableRow key={storage._id}>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">x:{storage.x} y:{storage.y}</Badge>
+                            </TableCell>
+                            <TableCell>
                               {storage.store && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                                  {Object.entries(storage.store).map(([resource, amount]) => (
-                                    <div key={resource}>
-                                      <span className="text-muted-foreground">{resource}:</span>
-                                      <span className="font-semibold ml-1">{amount.toLocaleString()}</span>
-                                    </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {Object.entries(storage.store).slice(0, 3).map(([resource, amount]) => (
+                                    <Badge key={resource} variant="secondary" className="text-xs">
+                                      {resource}: {amount.toLocaleString()}
+                                    </Badge>
                                   ))}
+                                  {Object.keys(storage.store).length > 3 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{Object.keys(storage.store).length - 3} more
+                                    </Badge>
+                                  )}
                                 </div>
                               )}
-                            </CardContent>
-                          </Card>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {storage.store ? Object.values(storage.store).reduce((a, b) => a + b, 0).toLocaleString() : 0}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${storage.hits && storage.hitsMax ? (storage.hits / storage.hitsMax) * 100 : 0}%` }} />
+                                </div>
+                                <span className="text-xs text-muted-foreground">{((storage.hits && storage.hitsMax ? (storage.hits / storage.hitsMax) * 100 : 0)).toFixed(0)}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {getContainers().length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <IconBox className="size-4" />
+                      Containers ({getContainers().length})
+                    </h3>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Position</TableHead>
+                          <TableHead>Resources</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>Health</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getContainers().map((container) => (
+                          <TableRow key={container._id}>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">x:{container.x} y:{container.y}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {container.store && Object.keys(container.store).length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {Object.entries(container.store).slice(0, 2).map(([resource, amount]) => (
+                                    <Badge key={resource} variant="secondary" className="text-xs">
+                                      {resource}: {amount.toLocaleString()}
+                                    </Badge>
+                                  ))}
+                                  {Object.keys(container.store).length > 2 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      +{Object.keys(container.store).length - 2} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Empty</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {container.store ? Object.values(container.store).reduce((a, b) => a + b, 0).toLocaleString() : 0} / 2,000
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-green-500" style={{ width: `${container.hits && container.hitsMax ? (container.hits / container.hitsMax) * 100 : 0}%` }} />
+                                </div>
+                                <span className="text-xs text-muted-foreground">{((container.hits && container.hitsMax ? (container.hits / container.hitsMax) * 100 : 0)).toFixed(0)}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -729,7 +1054,7 @@ export function RoomControl() {
             <Card>
               <CardHeader>
                 <CardTitle>Resources in {selectedRoom}</CardTitle>
-                <CardDescription>Monitor resource storage and production</CardDescription>
+                <CardDescription>{isMyRoom ? 'Monitor resource storage and production' : 'View resource storage in this room'}</CardDescription>
               </CardHeader>
               <CardContent>
                 {Object.keys(resources).length === 0 ? (
