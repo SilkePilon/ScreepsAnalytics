@@ -291,6 +291,64 @@ export function RoomControl() {
     return resources
   }
 
+  const getResourceBreakdown = () => {
+    if (!roomData) return { storage: {}, containers: {}, spawns: {}, extensions: {} }
+    
+    const breakdown = {
+      storage: {} as Record<string, { current: number, max: number }>,
+      containers: {} as Record<string, { current: number, max: number }>,
+      spawns: {} as Record<string, { current: number, max: number }>,
+      extensions: {} as Record<string, { current: number, max: number }>
+    }
+
+    getStorages().forEach(storage => {
+      if (storage.store) {
+        Object.entries(storage.store).forEach(([resource, amount]) => {
+          if (!breakdown.storage[resource]) {
+            breakdown.storage[resource] = { current: 0, max: 0 }
+          }
+          breakdown.storage[resource].current += amount
+          const capacity = storage.storeCapacity || 1000000
+          breakdown.storage[resource].max += capacity
+        })
+      }
+    })
+
+    getContainers().forEach(container => {
+      if (container.store) {
+        Object.entries(container.store).forEach(([resource, amount]) => {
+          if (!breakdown.containers[resource]) {
+            breakdown.containers[resource] = { current: 0, max: 0 }
+          }
+          breakdown.containers[resource].current += amount
+          breakdown.containers[resource].max += 2000
+        })
+      }
+    })
+
+    getSpawns().forEach(spawn => {
+      const energy = spawn.store?.energy || spawn.energy || 0
+      const capacity = spawn.storeCapacityResource?.energy || spawn.storeCapacity || spawn.energyCapacity || 0
+      if (!breakdown.spawns.energy) {
+        breakdown.spawns.energy = { current: 0, max: 0 }
+      }
+      breakdown.spawns.energy.current += energy
+      breakdown.spawns.energy.max += capacity
+    })
+
+    getExtensions().forEach(ext => {
+      const energy = ext.store?.energy || ext.energy || 0
+      const capacity = ext.storeCapacityResource?.energy || ext.storeCapacity || ext.energyCapacity || 0
+      if (!breakdown.extensions.energy) {
+        breakdown.extensions.energy = { current: 0, max: 0 }
+      }
+      breakdown.extensions.energy.current += energy
+      breakdown.extensions.energy.max += capacity
+    })
+
+    return breakdown
+  }
+
   const controller = getController()
   const energy = calculateTotalEnergy()
   const creeps = getCreeps()
@@ -704,8 +762,25 @@ export function RoomControl() {
 
             <Card>
               <CardHeader>
-                <CardTitle>{isMyRoom ? 'My Creeps in' : 'Creeps in'} {selectedRoom}</CardTitle>
-                <CardDescription>{isMyRoom ? 'View and manage your creeps' : 'Creeps in this room'} ({getMyCreeps().length} total)</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{isMyRoom ? 'My Creeps in' : 'Creeps in'} {selectedRoom}</CardTitle>
+                    <CardDescription>{isMyRoom ? 'View and manage your creeps' : 'Creeps in this room'} ({getMyCreeps().length} total)</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                      {autoRefresh ? 'Auto' : 'Manual'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+                      <IconRefresh className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {getMyCreeps().length === 0 ? (
@@ -839,7 +914,24 @@ export function RoomControl() {
           <TabsContent value="structures" className="space-y-3">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle>Structures in {selectedRoom}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Structures in {selectedRoom}</CardTitle>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                      {autoRefresh ? 'Auto' : 'Manual'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+                      <IconRefresh className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {getSpawns().length > 0 && (
@@ -1076,29 +1168,187 @@ export function RoomControl() {
           <TabsContent value="resources" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Resources in {selectedRoom}</CardTitle>
-                <CardDescription>{isMyRoom ? 'Monitor resource storage and production' : 'View resource storage in this room'}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {Object.keys(resources).length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No resources found in storage</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(resources).map(([resource, amount]) => (
-                      <Card key={resource}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-muted-foreground">{resource}</p>
-                              <p className="text-2xl font-bold">{amount.toLocaleString()}</p>
-                            </div>
-                            <IconBox className="size-8 text-muted-foreground" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Resources in {selectedRoom}</CardTitle>
+                    <CardDescription>{isMyRoom ? 'Monitor resource storage and production' : 'View resource storage in this room'}</CardDescription>
                   </div>
-                )}
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                      {autoRefresh ? 'Auto' : 'Manual'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+                      <IconRefresh className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {(() => {
+                  const breakdown = getResourceBreakdown()
+                  const hasAnyResources = Object.keys(breakdown.storage).length > 0 || 
+                                         Object.keys(breakdown.containers).length > 0 || 
+                                         Object.keys(breakdown.spawns).length > 0 || 
+                                         Object.keys(breakdown.extensions).length > 0
+
+                  if (!hasAnyResources) {
+                    return <p className="text-muted-foreground text-center py-8">No resources found in storage</p>
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      {Object.keys(breakdown.storage).length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 pb-2 border-b">
+                            <IconBox className="size-5" />
+                            <h3 className="font-semibold text-lg">Storage</h3>
+                            <span className="text-sm text-muted-foreground ml-auto">
+                              {Object.keys(breakdown.storage).length} resource types
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {Object.entries(breakdown.storage).map(([resource, { current, max }]) => {
+                              const percentage = (current / max) * 100
+                              return (
+                                <div key={resource} className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                                  <div className="flex items-center gap-3 min-w-[200px]">
+                                    <IconBox className="size-4 text-muted-foreground" />
+                                    <span className="font-medium">{resource}</span>
+                                  </div>
+                                  <div className="flex-1 space-y-1">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground">
+                                        {current.toLocaleString()} / {max.toLocaleString()}
+                                      </span>
+                                      <span className="font-medium">{percentage.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500" 
+                                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {Object.keys(breakdown.containers).length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 pb-2 border-b">
+                            <IconBox className="size-5" />
+                            <h3 className="font-semibold text-lg">Containers</h3>
+                            <span className="text-sm text-muted-foreground ml-auto">
+                              {Object.keys(breakdown.containers).length} resource types
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {Object.entries(breakdown.containers).map(([resource, { current, max }]) => {
+                              const percentage = (current / max) * 100
+                              return (
+                                <div key={resource} className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                                  <div className="flex items-center gap-3 min-w-[200px]">
+                                    <IconBox className="size-4 text-muted-foreground" />
+                                    <span className="font-medium">{resource}</span>
+                                  </div>
+                                  <div className="flex-1 space-y-1">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground">
+                                        {current.toLocaleString()} / {max.toLocaleString()}
+                                      </span>
+                                      <span className="font-medium">{percentage.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-gradient-to-r from-yellow-500 to-yellow-600 transition-all duration-500" 
+                                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {(Object.keys(breakdown.spawns).length > 0 || Object.keys(breakdown.extensions).length > 0) && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 pb-2 border-b">
+                            <IconBox className="size-5" />
+                            <h3 className="font-semibold text-lg">Energy Structures</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.keys(breakdown.spawns).length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-muted-foreground">Spawns</h4>
+                                {Object.entries(breakdown.spawns).map(([resource, { current, max }]) => {
+                                  const percentage = max > 0 ? (current / max) * 100 : 0
+                                  return (
+                                    <div key={resource} className="p-4 rounded-lg border bg-card space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-2xl font-bold">{current.toLocaleString()}</span>
+                                        <span className="text-sm text-muted-foreground">/ {max.toLocaleString()}</span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className="text-muted-foreground">Energy capacity</span>
+                                          <span className="font-medium">{percentage.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                                          <div 
+                                            className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500" 
+                                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                            {Object.keys(breakdown.extensions).length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-muted-foreground">Extensions</h4>
+                                {Object.entries(breakdown.extensions).map(([resource, { current, max }]) => {
+                                  const percentage = max > 0 ? (current / max) * 100 : 0
+                                  return (
+                                    <div key={resource} className="p-4 rounded-lg border bg-card space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-2xl font-bold">{current.toLocaleString()}</span>
+                                        <span className="text-sm text-muted-foreground">/ {max.toLocaleString()}</span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className="text-muted-foreground">Energy capacity</span>
+                                          <span className="font-medium">{percentage.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                                          <div 
+                                            className="h-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-500" 
+                                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
