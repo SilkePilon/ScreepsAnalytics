@@ -104,12 +104,16 @@ export async function POST(request: NextRequest) {
           )
         }
         
+        if (!authToken) {
+          authToken = await signin(settings)
+        }
+        
         url = `${settings.apiUrl}/api/user/console`
         const commandResponse = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Token': authToken || await signin(settings),
+            'X-Token': authToken,
             'X-Username': settings.username,
           },
           body: JSON.stringify({
@@ -118,11 +122,36 @@ export async function POST(request: NextRequest) {
           })
         })
         
-        if (!commandResponse.ok) {
+        if (commandResponse.status === 401) {
+          authToken = null
+          authToken = await signin(settings)
+          const retryResponse = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Token': authToken,
+              'X-Username': settings.username,
+            },
+            body: JSON.stringify({
+              expression: command,
+              shard: settings.shard
+            })
+          })
+          
+          if (!retryResponse.ok) {
+            throw new Error(`Console command failed: ${retryResponse.status}`)
+          }
+          
+          result = await retryResponse.json()
+        } else if (!commandResponse.ok) {
           throw new Error(`Console command failed: ${commandResponse.status}`)
+        } else {
+          const newToken = commandResponse.headers.get('X-Token')
+          if (newToken) {
+            authToken = newToken
+          }
+          result = await commandResponse.json()
         }
-        
-        result = await commandResponse.json()
         break
 
       case 'test-room-stats':
