@@ -130,17 +130,22 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
       
       if (permission === 'granted') {
         toast.success('Notification permission granted')
-        new Notification('Screeps Analytics', {
-          body: `Notifications enabled for ${roomName}`,
-          icon: '/favicon.ico',
-          tag: 'test-notification'
-        })
+        try {
+          new Notification('Screeps Analytics', {
+            body: `Notifications enabled for ${roomName}`,
+            icon: '/favicon.ico',
+            tag: 'test-notification'
+          })
+        } catch (notifError) {
+          console.log('Test notification could not be created:', notifError)
+        }
       } else if (permission === 'denied') {
         toast.error('Notification permission denied. Please enable in browser settings.')
+      } else if (permission === 'default') {
+        toast.info('Notification permission was not granted. Please try again.')
       }
     } catch (error) {
       console.error('Error requesting notification permission:', error)
-      toast.error('Failed to request notification permission')
     }
   }
 
