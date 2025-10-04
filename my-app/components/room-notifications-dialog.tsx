@@ -92,7 +92,7 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
     loadConfig()
   }, [roomName, playerName, serverUrl])
 
-  const sendTestNotification = () => {
+  const sendTestNotification = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       toast.error('Notifications not supported in this browser')
       return
@@ -104,13 +104,28 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
       return
     }
 
-    new Notification(`Screeps - ${roomName}`, {
-      body: 'This is a test notification. Your notifications are working correctly!',
-      icon: '/favicon.ico',
-      tag: 'test-notification',
-      requireInteraction: false
-    })
-    toast.success('Test notification sent')
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification(`Screeps - ${roomName}`, {
+          body: 'This is a test notification. Your notifications are working correctly!',
+          icon: '/favicon.ico',
+          tag: 'test-notification',
+          requireInteraction: false
+        })
+      } else {
+        new Notification(`Screeps - ${roomName}`, {
+          body: 'This is a test notification. Your notifications are working correctly!',
+          icon: '/favicon.ico',
+          tag: 'test-notification',
+          requireInteraction: false
+        })
+      }
+      toast.success('Test notification sent')
+    } catch (error) {
+      console.error('Failed to send test notification:', error)
+      toast.error('Failed to send test notification')
+    }
   }
 
   const requestNotificationPermission = async () => {
@@ -131,11 +146,21 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
       if (permission === 'granted') {
         toast.success('Notification permission granted')
         try {
-          new Notification('Screeps Analytics', {
-            body: `Notifications enabled for ${roomName}`,
-            icon: '/favicon.ico',
-            tag: 'test-notification'
-          })
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((registration) => {
+              registration.showNotification('Screeps Analytics', {
+                body: `Notifications enabled for ${roomName}`,
+                icon: '/favicon.ico',
+                tag: 'permission-granted'
+              })
+            })
+          } else {
+            new Notification('Screeps Analytics', {
+              body: `Notifications enabled for ${roomName}`,
+              icon: '/favicon.ico',
+              tag: 'permission-granted'
+            })
+          }
         } catch (notifError) {
           console.log('Test notification could not be created:', notifError)
         }
