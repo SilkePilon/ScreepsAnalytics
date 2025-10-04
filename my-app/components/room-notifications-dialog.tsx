@@ -622,21 +622,21 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
             </AccordionItem>
           </Accordion>
 
-          <div className="flex justify-between items-center gap-2 pt-4">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 pt-4">
             <Button 
               variant="outline" 
               onClick={sendTestNotification}
               disabled={notificationPermission !== 'granted'}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
             >
               <IconBell className="size-4" />
               Send Test
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none">
                 Cancel
               </Button>
-              <Button onClick={saveConfig} disabled={saving}>
+              <Button onClick={saveConfig} disabled={saving} className="flex-1 sm:flex-none">
                 {saving ? "Saving..." : "Save Settings"}
               </Button>
             </div>
