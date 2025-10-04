@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+interface RoomObject {
+  type: string
+  level?: number
+  downgradeTime?: number
+  my?: boolean
+  store?: {
+    energy?: number
+  }
+  spawning?: boolean
+  storeCapacity?: number
+  hits?: number
+}
+
+interface RoomData {
+  objects: RoomObject[]
+  gameTime: number
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -149,16 +167,16 @@ export async function POST(request: NextRequest) {
 
           if (!roomResponse.ok) continue
 
-          const roomData = await roomResponse.json()
+          const roomData = await roomResponse.json() as RoomData
           const objects = roomData.objects || []
 
-          const controller = objects.find((obj: any) => obj.type === 'controller')
-          const spawns = objects.filter((obj: any) => obj.type === 'spawn')
-          const towers = objects.filter((obj: any) => obj.type === 'tower')
-          const storage = objects.find((obj: any) => obj.type === 'storage')
-          const hostileCreeps = objects.filter((obj: any) => obj.type === 'creep' && !obj.my)
-          const ramparts = objects.filter((obj: any) => obj.type === 'rampart')
-          const walls = objects.filter((obj: any) => obj.type === 'constructedWall')
+          const controller = objects.find((obj) => obj.type === 'controller')
+          const spawns = objects.filter((obj) => obj.type === 'spawn')
+          const towers = objects.filter((obj) => obj.type === 'tower')
+          const storage = objects.find((obj) => obj.type === 'storage')
+          const hostileCreeps = objects.filter((obj) => obj.type === 'creep' && !obj.my)
+          const ramparts = objects.filter((obj) => obj.type === 'rampart')
+          const walls = objects.filter((obj) => obj.type === 'constructedWall')
 
           if (config.controller_downgrade_enabled && controller?.level && controller.downgradeTime) {
             const ticksToDowngrade = controller.downgradeTime - (roomData.gameTime || 0)
@@ -179,8 +197,8 @@ export async function POST(request: NextRequest) {
 
           if (config.energy_critical_enabled) {
             const totalEnergy = objects
-              .filter((obj: any) => obj.type === 'extension' || obj.type === 'spawn')
-              .reduce((sum: number, obj: any) => sum + (obj.store?.energy || 0), 0)
+              .filter((obj) => obj.type === 'extension' || obj.type === 'spawn')
+              .reduce((sum: number, obj) => sum + (obj.store?.energy || 0), 0)
 
             if (totalEnergy < config.energy_critical_threshold) {
               notifications.push({
@@ -197,8 +215,8 @@ export async function POST(request: NextRequest) {
 
           if (config.energy_low_enabled) {
             const totalEnergy = objects
-              .filter((obj: any) => obj.type === 'extension' || obj.type === 'spawn')
-              .reduce((sum: number, obj: any) => sum + (obj.store?.energy || 0), 0)
+              .filter((obj) => obj.type === 'extension' || obj.type === 'spawn')
+              .reduce((sum: number, obj) => sum + (obj.store?.energy || 0), 0)
 
             if (totalEnergy < config.energy_low_threshold && totalEnergy >= (config.energy_critical_threshold || 0)) {
               notifications.push({
@@ -226,7 +244,7 @@ export async function POST(request: NextRequest) {
           }
 
           if (config.tower_low_energy_enabled) {
-            const lowTowers = towers.filter((tower: any) => 
+            const lowTowers = towers.filter((tower) => 
               (tower.store?.energy || 0) < config.tower_low_energy_threshold
             )
 
@@ -244,7 +262,7 @@ export async function POST(request: NextRequest) {
           }
 
           if (config.spawn_idle_enabled) {
-            const idleSpawns = spawns.filter((spawn: any) => !spawn.spawning)
+            const idleSpawns = spawns.filter((spawn) => !spawn.spawning)
 
             if (idleSpawns.length === spawns.length && spawns.length > 0) {
               notifications.push({
@@ -278,7 +296,7 @@ export async function POST(request: NextRequest) {
           }
 
           if (config.rampart_low_hits_enabled) {
-            const lowRamparts = ramparts.filter((rampart: any) => 
+            const lowRamparts = ramparts.filter((rampart) => 
               (rampart.hits || 0) < config.rampart_low_hits_threshold
             )
 
@@ -296,7 +314,7 @@ export async function POST(request: NextRequest) {
           }
 
           if (config.wall_low_hits_enabled) {
-            const lowWalls = walls.filter((wall: any) => 
+            const lowWalls = walls.filter((wall) => 
               (wall.hits || 0) < config.wall_low_hits_threshold
             )
 
