@@ -32,11 +32,13 @@ import {
 } from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useIsMobile } from "@/hooks/use-mobile"
 
 export function SettingsDialog() {
   const [open, setOpen] = React.useState(false)
-  const isMobile = useIsMobile()
+  const [isMobile] = React.useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth < 768
+  })
   const [settings, setSettings] = React.useState<ServerSettings>({
     apiUrl: 'http://127.0.0.1:3000',
     username: '',

@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { IconBell, IconBellOff, IconAlertTriangle, IconBolt, IconShield, IconFlame, IconClock, IconInfoCircle } from "@tabler/icons-react"
 import { toast } from "sonner"
-import { useIsMobile } from "@/hooks/use-mobile"
 
 interface RoomNotificationConfig {
   enabled: boolean
@@ -666,7 +665,10 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
 
 export function RoomNotificationsDialog({ roomName, playerName, serverUrl, children }: RoomNotificationsDialogProps) {
   const [open, setOpen] = useState(false)
-  const isMobile = useIsMobile()
+  const [isMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth < 768
+  })
 
   if (isMobile) {
     return (
