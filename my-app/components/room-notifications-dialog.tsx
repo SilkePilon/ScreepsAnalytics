@@ -81,10 +81,66 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
   const [config, setConfig] = useState<RoomNotificationConfig>(defaultConfig)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
 
   useEffect(() => {
     loadConfig()
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotificationPermission(Notification.permission)
+    }
   }, [roomName, playerName, serverUrl])
+
+  const sendTestNotification = () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast.error('Notifications not supported in this browser')
+      return
+    }
+
+    if (Notification.permission !== 'granted') {
+      toast.error('Please grant notification permission first')
+      requestNotificationPermission()
+      return
+    }
+
+    new Notification(`Screeps - ${roomName}`, {
+      body: 'This is a test notification. Your notifications are working correctly!',
+      icon: '/favicon.ico',
+      tag: 'test-notification',
+      requireInteraction: false
+    })
+    toast.success('Test notification sent')
+  }
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      toast.error('Notifications not supported in this browser')
+      return
+    }
+
+    if (Notification.permission === 'granted') {
+      toast.success('Notification permission already granted')
+      return
+    }
+
+    try {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+      
+      if (permission === 'granted') {
+        toast.success('Notification permission granted')
+        new Notification('Screeps Analytics', {
+          body: `Notifications enabled for ${roomName}`,
+          icon: '/favicon.ico',
+          tag: 'test-notification'
+        })
+      } else if (permission === 'denied') {
+        toast.error('Notification permission denied. Please enable in browser settings.')
+      }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error)
+      toast.error('Failed to request notification permission')
+    }
+  }
 
   const loadConfig = async () => {
     setLoading(true)
@@ -114,6 +170,12 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
   }
 
   const saveConfig = async () => {
+    if (config.enabled && notificationPermission !== 'granted') {
+      toast.error('Please grant notification permission first')
+      await requestNotificationPermission()
+      return
+    }
+
     setSaving(true)
     try {
       const response = await fetch('/api/room-notifications', {
@@ -129,7 +191,7 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
       })
 
       if (response.ok) {
-        toast.success('Notification settings saved')
+        toast.success(config.enabled ? 'Notification settings saved' : 'Notifications disabled')
         onClose()
       } else {
         throw new Error('Failed to save')
@@ -200,6 +262,31 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
 
       {config.enabled && (
         <>
+          {notificationPermission !== 'granted' && (
+            <div className="rounded-lg border border-orange-500/50 p-4 bg-orange-500/10">
+              <div className="flex items-start gap-3">
+                <IconAlertTriangle className="size-5 text-orange-500 mt-0.5" />
+                <div className="space-y-2 flex-1">
+                  <p className="text-sm font-medium">Notification Permission Required</p>
+                  <p className="text-xs text-muted-foreground">
+                    You need to grant notification permission to receive alerts from this room.
+                    {notificationPermission === 'denied' && ' Please enable notifications in your browser settings.'}
+                  </p>
+                  {notificationPermission !== 'denied' && (
+                    <Button
+                      size="sm"
+                      onClick={requestNotificationPermission}
+                      className="mt-2"
+                    >
+                      <IconBell className="size-4 mr-2" />
+                      Grant Permission
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border p-4 bg-muted/50">
             <div className="flex items-start gap-3">
               <IconInfoCircle className="size-5 text-muted-foreground mt-0.5" />
@@ -532,21 +619,42 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
             </AccordionItem>
           </Accordion>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
+          <div className="flex justify-between items-center gap-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={sendTestNotification}
+              disabled={notificationPermission !== 'granted'}
+              className="gap-2"
+            >
+              <IconBell className="size-4" />
+              Send Test
             </Button>
-            <Button onClick={saveConfig} disabled={saving}>
-              {saving ? "Saving..." : "Save Settings"}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={saveConfig} disabled={saving}>
+                {saving ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
           </div>
         </>
       )}
 
       {!config.enabled && (
-        <div className="text-center py-8 text-muted-foreground">
-          <IconBellOff className="size-12 mx-auto mb-4 opacity-50" />
-          <p>Enable notifications to configure alerts for this room</p>
+        <div className="space-y-4">
+          <div className="text-center py-8 text-muted-foreground">
+            <IconBellOff className="size-12 mx-auto mb-4 opacity-50" />
+            <p>Enable notifications to configure alerts for this room</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={saveConfig} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
         </div>
       )}
     </div>

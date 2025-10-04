@@ -8,6 +8,7 @@ import { PlayersGrid } from "@/components/players-grid"
 import { ConsoleActions } from "@/components/console-actions"
 import { RoomControl } from "@/components/room-control"
 import { SiteHeader } from "@/components/site-header"
+import { NotificationWorker } from "@/components/notification-worker"
 import {
   SidebarInset,
   SidebarProvider,
@@ -24,6 +25,7 @@ export default function Page() {
   const [showLeftShadow, setShowLeftShadow] = React.useState(false)
   const [showRightShadow, setShowRightShadow] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const [settings, setSettings] = React.useState(() => getServerSettings())
 
   const handleScroll = React.useCallback(() => {
     const element = scrollRef.current
@@ -77,8 +79,30 @@ export default function Page() {
     return () => clearInterval(timer)
   }, [loadData, analyticsLoaded])
 
+  React.useEffect(() => {
+    const handleStorageChange = () => {
+      setSettings(getServerSettings())
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    const interval = setInterval(() => {
+      setSettings(getServerSettings())
+    }, 1000)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [])
+
   return (
-    <SidebarProvider
+    <>
+      <NotificationWorker 
+        playerName={settings.username || null} 
+        serverUrl={settings.apiUrl || null} 
+      />
+      <SidebarProvider
       defaultOpen={false}
       style={
         {
@@ -230,5 +254,6 @@ export default function Page() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </>
   )
 }
