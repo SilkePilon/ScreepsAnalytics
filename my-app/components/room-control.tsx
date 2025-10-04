@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -172,6 +172,7 @@ export function RoomControl() {
     if (myRooms.length > 0 || favoriteRooms.length > 0) {
       loadRoomCards()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myRooms, favoriteRooms])
 
   const toggleFavorite = async (roomName: string) => {
@@ -199,7 +200,7 @@ export function RoomControl() {
     }
   }
 
-  const loadRoomCards = async () => {
+  const loadRoomCards = useCallback(async () => {
     const allRooms = [...new Set([...myRooms, ...favoriteRooms])]
     const cardsData: RoomCardData[] = []
 
@@ -279,7 +280,7 @@ export function RoomControl() {
     }
 
     setRoomCards(cardsData)
-  }
+  }, [myRooms, favoriteRooms])
 
   const searchPlayerRooms = async (query: string) => {
     if (!query.trim()) {
@@ -546,7 +547,6 @@ export function RoomControl() {
   const controller = getController()
   const energy = calculateTotalEnergy()
   const creeps = getCreeps()
-  const resources = getTotalResources()
   const isMyRoom = myRooms.includes(selectedRoom)
 
   return (

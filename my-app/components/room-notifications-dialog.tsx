@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { IconBell, IconBellOff, IconAlertTriangle, IconBolt, IconShield, IconFlame, IconBox, IconClock, IconInfoCircle } from "@tabler/icons-react"
+import { IconBell, IconBellOff, IconAlertTriangle, IconBolt, IconShield, IconFlame, IconClock, IconInfoCircle } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -84,10 +84,13 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
 
   useEffect(() => {
-    loadConfig()
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotificationPermission(Notification.permission)
     }
+  }, [])
+
+  useEffect(() => {
+    loadConfig()
   }, [roomName, playerName, serverUrl])
 
   const sendTestNotification = () => {
