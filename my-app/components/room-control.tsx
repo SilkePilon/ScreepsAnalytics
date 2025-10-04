@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RoomVisual, calculateControllerProgress, getControllerProgressTotal } from "@/components/room-visual"
+import { RoomNotificationsDialog } from "@/components/room-notifications-dialog"
 import { getServerSettings } from "@/lib/screeps-api"
 import { getFavoriteRooms, addFavoriteRoom, removeFavoriteRoom } from "@/lib/supabase"
 import { 
@@ -31,7 +32,8 @@ import {
   IconMap,
   IconStar,
   IconStarFilled,
-  IconArrowLeft
+  IconArrowLeft,
+  IconBell
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 
@@ -794,6 +796,16 @@ export function RoomControl() {
                     )}
                   </CardTitle>
                   <div className="flex gap-2 flex-wrap">
+                    <RoomNotificationsDialog
+                      roomName={selectedRoom}
+                      playerName={getServerSettings().username}
+                      serverUrl={getServerSettings().apiUrl}
+                    >
+                      <Button variant="outline" size="sm">
+                        <IconBell className="size-4 mr-1" />
+                        Notifications
+                      </Button>
+                    </RoomNotificationsDialog>
                     <Button 
                       variant="outline" 
                       size="sm"
