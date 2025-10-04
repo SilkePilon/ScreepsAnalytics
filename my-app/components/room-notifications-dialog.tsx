@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
@@ -206,9 +206,9 @@ function NotificationForm({ roomName, playerName, serverUrl, onClose }: RoomNoti
     }
   }
 
-  const updateConfig = (updates: Partial<RoomNotificationConfig>) => {
+  const updateConfig = useCallback((updates: Partial<RoomNotificationConfig>) => {
     setConfig(prev => ({ ...prev, ...updates }))
-  }
+  }, [])
 
   const getOptimalCheckInterval = () => {
     const activeNotifications = [

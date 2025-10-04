@@ -33,6 +33,91 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+interface SettingsFormProps {
+  settings: ServerSettings
+  onSettingsChange: (settings: ServerSettings) => void
+}
+
+function SettingsForm({ settings, onSettingsChange }: SettingsFormProps) {
+  return (
+    <div className="flex flex-col gap-4 py-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="apiUrl">API URL</Label>
+        <Input
+          id="apiUrl"
+          placeholder="http://127.0.0.1:3000"
+          value={settings.apiUrl}
+          onChange={(e) =>
+            onSettingsChange({ ...settings, apiUrl: e.target.value })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          The base URL of your Screeps server (without /api)
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="username">Username</Label>
+        <Input
+          id="username"
+          placeholder="Your username"
+          value={settings.username}
+          onChange={(e) =>
+            onSettingsChange({ ...settings, username: e.target.value })
+          }
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Your password"
+          value={settings.password}
+          onChange={(e) =>
+            onSettingsChange({ ...settings, password: e.target.value })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          Your Screeps server password
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="shard">Shard Name</Label>
+        <Input
+          id="shard"
+          placeholder="shard0"
+          value={settings.shard}
+          onChange={(e) =>
+            onSettingsChange({ ...settings, shard: e.target.value })
+          }
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="polling">Polling Interval (ms)</Label>
+        <Input
+          id="polling"
+          type="number"
+          placeholder="30000"
+          value={settings.pollingInterval}
+          onChange={(e) =>
+            onSettingsChange({
+              ...settings,
+              pollingInterval: parseInt(e.target.value) || 30000,
+            })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          How often to refresh data (minimum 10000ms)
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function SettingsDialog() {
   const [open, setOpen] = React.useState(false)
   const [isMobile] = React.useState(() => {
@@ -47,6 +132,10 @@ export function SettingsDialog() {
     shard: 'shard0',
   })
   const [testing, setTesting] = React.useState(false)
+
+  const handleSettingsChange = React.useCallback((newSettings: ServerSettings) => {
+    setSettings(newSettings)
+  }, [])
 
   React.useEffect(() => {
     if (open) {
@@ -80,84 +169,6 @@ export function SettingsDialog() {
     }
   }
 
-  const SettingsForm = () => (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="apiUrl">API URL</Label>
-        <Input
-          id="apiUrl"
-          placeholder="http://127.0.0.1:3000"
-          value={settings.apiUrl}
-          onChange={(e) =>
-            setSettings({ ...settings, apiUrl: e.target.value })
-          }
-        />
-        <p className="text-muted-foreground text-xs">
-          The base URL of your Screeps server (without /api)
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="username">Username</Label>
-        <Input
-          id="username"
-          placeholder="Your username"
-          value={settings.username}
-          onChange={(e) =>
-            setSettings({ ...settings, username: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          placeholder="Your password"
-          value={settings.password}
-          onChange={(e) =>
-            setSettings({ ...settings, password: e.target.value })
-          }
-        />
-        <p className="text-muted-foreground text-xs">
-          Your Screeps server password
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="shard">Shard Name</Label>
-        <Input
-          id="shard"
-          placeholder="shard0"
-          value={settings.shard}
-          onChange={(e) =>
-            setSettings({ ...settings, shard: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="polling">Polling Interval (ms)</Label>
-        <Input
-          id="polling"
-          type="number"
-          placeholder="30000"
-          value={settings.pollingInterval}
-          onChange={(e) =>
-            setSettings({
-              ...settings,
-              pollingInterval: parseInt(e.target.value) || 30000,
-            })
-          }
-        />
-        <p className="text-muted-foreground text-xs">
-          How often to refresh data (minimum 10000ms)
-        </p>
-      </div>
-    </div>
-  )
-
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={setOpen}>
@@ -175,7 +186,7 @@ export function SettingsDialog() {
             </DrawerDescription>
           </DrawerHeader>
           <div className="px-4">
-            <SettingsForm />
+            <SettingsForm settings={settings} onSettingsChange={handleSettingsChange} />
           </div>
           <DrawerFooter>
             <Button
@@ -212,7 +223,7 @@ export function SettingsDialog() {
             Configure your Screeps private server connection
           </DialogDescription>
         </DialogHeader>
-        <SettingsForm />
+        <SettingsForm settings={settings} onSettingsChange={handleSettingsChange} />
         <DialogFooter>
           <Button
             variant="outline"
