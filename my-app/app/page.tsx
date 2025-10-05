@@ -6,6 +6,7 @@ import { ChartsGrid } from "@/components/charts-grid"
 import { PlayerLeaderboard } from "@/components/player-leaderboard"
 import { PlayersGrid } from "@/components/players-grid"
 import { ConsoleActions } from "@/components/console-actions"
+import { GlobalSay } from "@/components/global-say"
 import { RoomControl } from "@/components/room-control"
 import { SiteHeader } from "@/components/site-header"
 import { NotificationWorker } from "@/components/notification-worker"
@@ -211,7 +212,20 @@ export default function Page() {
                 </TabsContent>
                 
                 <TabsContent value="actions" className="mt-6">
-                  <ConsoleActions />
+                  <Tabs defaultValue="console" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 max-w-md">
+                      <TabsTrigger value="console">Console Actions</TabsTrigger>
+                      <TabsTrigger value="globalsay">Global Say</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="console" className="mt-6">
+                      <ConsoleActions />
+                    </TabsContent>
+                    
+                    <TabsContent value="globalsay" className="mt-6">
+                      <GlobalSay />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
                 
                 <TabsContent value="rooms" className="mt-6">
