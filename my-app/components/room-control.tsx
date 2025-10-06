@@ -440,6 +440,7 @@ export function RoomControl() {
   const getExtensions = () => getObjectsByType('extension')
   const getStorages = () => getObjectsByType('storage')
   const getContainers = () => getObjectsByType('container')
+  const getTerminals = () => getObjectsByType('terminal')
   const getLinks = () => getObjectsByType('link')
   const getLabs = () => getObjectsByType('lab')
   const getController = () => getObjectsByType('controller')[0]
@@ -472,7 +473,7 @@ export function RoomControl() {
 
   const getTotalResources = () => {
     if (!roomData) return {}
-    const storages = [...getStorages(), ...getContainers()]
+    const storages = [...getStorages(), ...getContainers(), ...getTerminals()]
     const resources: Record<string, number> = {}
 
     storages.forEach(storage => {
@@ -773,11 +774,12 @@ export function RoomControl() {
                 Back to Room List
               </Button>
               
-              <TabsList className="grid w-full max-w-2xl grid-cols-4">
+              <TabsList className="grid w-full max-w-3xl grid-cols-5">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="creeps">Creeps ({creeps.length})</TabsTrigger>
                 <TabsTrigger value="structures">Structures</TabsTrigger>
                 <TabsTrigger value="resources">Resources</TabsTrigger>
+                <TabsTrigger value="nuker">Nuker</TabsTrigger>
               </TabsList>
             </div>
 
@@ -1724,6 +1726,195 @@ export function RoomControl() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="nuker" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Nuker Status in {selectedRoom}</CardTitle>
+                    <CardDescription>{isMyRoom ? 'Monitor nuker fuel levels and material availability' : 'View nuker status in this room'}</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                      {autoRefresh ? 'Auto' : 'Manual'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
+                      <IconRefresh className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {(() => {
+                  const nuker = roomData?.objects?.find((obj: RoomObject) => obj.type === 'nuker')
+                  const totalResources = getTotalResources()
+                  
+                  const nukerEnergy = nuker?.store?.energy || 0
+                  const nukerGhodium = nuker?.store?.G || 0
+                  const energyPercentage = (nukerEnergy / 300000) * 100
+                  const ghodiumPercentage = (nukerGhodium / 5000) * 100
+
+                  const materials = [
+                    { name: 'U', label: 'Utrium', color: 'from-cyan-500 to-cyan-600' },
+                    { name: 'L', label: 'Lemergium', color: 'from-green-500 to-green-600' },
+                    { name: 'Z', label: 'Zynthium', color: 'from-yellow-500 to-yellow-600' },
+                    { name: 'K', label: 'Keanium', color: 'from-purple-500 to-purple-600' },
+                    { name: 'UL', label: 'Utrium Lemergite', color: 'from-teal-500 to-teal-600' },
+                    { name: 'ZK', label: 'Zynthium Keanite', color: 'from-orange-500 to-orange-600' },
+                    { name: 'G', label: 'Ghodium', color: 'from-white to-gray-200' },
+                  ]
+
+                  if (!nuker) {
+                    return (
+                      <div className="text-center py-12 space-y-4">
+                        <IconBolt className="size-16 mx-auto text-muted-foreground opacity-50" />
+                        <div>
+                          <p className="text-lg font-medium text-muted-foreground">No Nuker Found</p>
+                          <p className="text-sm text-muted-foreground">This room does not have a nuker structure (requires RCL 8)</p>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-6 rounded-lg border bg-card space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconBolt className="size-5" />
+                              <h3 className="font-semibold text-lg">Energy</h3>
+                            </div>
+                            <Badge variant={energyPercentage >= 100 ? 'default' : 'secondary'}>
+                              {energyPercentage >= 100 ? 'Ready' : 'Charging'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-3xl font-bold">{nukerEnergy.toLocaleString()}</span>
+                              <span className="text-sm text-muted-foreground">/ 300,000</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Launch capacity</span>
+                                <span className="font-medium">{energyPercentage.toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-primary transition-all duration-500" 
+                                  style={{ width: `${Math.min(energyPercentage, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-6 rounded-lg border bg-card space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconBox className="size-5" />
+                              <h3 className="font-semibold text-lg">Ghodium</h3>
+                            </div>
+                            <Badge variant={ghodiumPercentage >= 100 ? 'default' : 'secondary'}>
+                              {ghodiumPercentage >= 100 ? 'Ready' : 'Loading'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-3xl font-bold">{nukerGhodium.toLocaleString()}</span>
+                              <span className="text-sm text-muted-foreground">/ 5,000</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Launch capacity</span>
+                                <span className="font-medium">{ghodiumPercentage.toFixed(1)}%</span>
+                              </div>
+                              <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-primary transition-all duration-500" 
+                                  style={{ width: `${Math.min(ghodiumPercentage, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg bg-muted/50 border">
+                        <div className="flex items-start gap-3">
+                          <IconBolt className="size-5 mt-0.5 flex-shrink-0" />
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">Launch Requirements</p>
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Energy:</strong> 300,000 | <strong>Ghodium:</strong> 5,000 | <strong>Cooldown:</strong> 100,000 ticks | <strong>Range:</strong> 10 rooms
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 pb-2 border-b">
+                          <IconBox className="size-5" />
+                          <h3 className="font-semibold text-lg">Compound Materials in Room</h3>
+                          <span className="text-sm text-muted-foreground ml-auto">
+                            Available in storage, containers, and terminal
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {materials.map(material => {
+                            const amount = totalResources[material.name] || 0
+                            return (
+                              <div key={material.name} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <IconBox className="size-4 text-muted-foreground" />
+                                    <span className="font-medium">{material.name}</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-xs">
+                                    {material.label}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-2xl font-bold">{amount.toLocaleString()}</span>
+                                  {material.name === 'G' && amount >= 5000 && (
+                                    <div className="text-xs text-green-500 font-medium">✓ Enough for launch</div>
+                                  )}
+                                  {material.name === 'G' && amount < 5000 && amount > 0 && (
+                                    <div className="text-xs text-orange-500">Need {(5000 - amount).toLocaleString()} more</div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-start gap-3">
+                          <IconBox className="size-5 mt-0.5 flex-shrink-0 text-blue-500" />
+                          <div className="space-y-2 text-sm">
+                            <p className="font-medium text-blue-600 dark:text-blue-400">Ghodium Production</p>
+                            <p className="text-xs text-muted-foreground">
+                              Ghodium (G) is produced by combining compounds in labs:<br />
+                              • <strong>ZK</strong> (Zynthium Keanite) = Z + K<br />
+                              • <strong>UL</strong> (Utrium Lemergite) = U + L<br />
+                              • <strong>G</strong> (Ghodium) = ZK + UL
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )
                 })()}
