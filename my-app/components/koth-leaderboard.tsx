@@ -67,12 +67,6 @@ export function KOTHLeaderboard() {
 
   useEffect(() => {
     fetchKOTHLeaderboard()
-    
-    const interval = setInterval(() => {
-      fetchKOTHLeaderboard()
-    }, 10000)
-
-    return () => clearInterval(interval)
   }, [fetchKOTHLeaderboard])
 
   const getRankBadge = (index: number) => {
@@ -92,10 +86,9 @@ export function KOTHLeaderboard() {
               King of the Hill Leaderboard
             </CardTitle>
             <CardDescription>
-              Auto-refreshes every 10 seconds
               {lastUpdate && (
-                <span className="ml-2 text-xs">
-                  • Last update: {lastUpdate.toLocaleTimeString()}
+                <span className="text-xs">
+                  Last update: {lastUpdate.toLocaleTimeString()}
                 </span>
               )}
             </CardDescription>
