@@ -4,6 +4,7 @@ import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { ChartsGrid } from "@/components/charts-grid"
 import { PlayerLeaderboard } from "@/components/player-leaderboard"
+import { KOTHLeaderboard } from "@/components/koth-leaderboard"
 import { PlayersGrid } from "@/components/players-grid"
 import { ConsoleActions } from "@/components/console-actions"
 import { GlobalSay } from "@/components/global-say"
@@ -233,34 +234,47 @@ export default function Page() {
                 </TabsContent>
                 
                 <TabsContent value="table" className="mt-6">
-                  {!analyticsLoaded ? (
-                    <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-muted-foreground text-center px-4">Analytics not loaded. Load analytics first to view leaderboard.</p>
-                      <button
-                        onClick={loadData}
-                        disabled={loading}
-                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        {loading ? 'Loading...' : 'Load Analytics'}
-                      </button>
-                    </div>
-                  ) : loading && players.length === 0 ? (
-                    <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
-                      <p className="text-muted-foreground">Loading player data...</p>
-                    </div>
-                  ) : error ? (
-                    <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
-                      <p className="text-destructive text-center px-4">{error}</p>
-                      <button
-                        onClick={loadData}
-                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                      >
-                        Try again
-                      </button>
-                    </div>
-                  ) : (
-                    <PlayerLeaderboard data={players} />
-                  )}
+                  <Tabs defaultValue="normal" className="w-full">
+                    <TabsList className="grid w-full max-w-md grid-cols-2">
+                      <TabsTrigger value="normal">Standard Leaderboard</TabsTrigger>
+                      <TabsTrigger value="koth">King of the Hill</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="normal" className="mt-6">
+                      {!analyticsLoaded ? (
+                        <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
+                          <p className="text-muted-foreground text-center px-4">Analytics not loaded. Load analytics first to view leaderboard.</p>
+                          <button
+                            onClick={loadData}
+                            disabled={loading}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {loading ? 'Loading...' : 'Load Analytics'}
+                          </button>
+                        </div>
+                      ) : loading && players.length === 0 ? (
+                        <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
+                          <p className="text-muted-foreground">Loading player data...</p>
+                        </div>
+                      ) : error ? (
+                        <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
+                          <p className="text-destructive text-center px-4">{error}</p>
+                          <button
+                            onClick={loadData}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                          >
+                            Try again
+                          </button>
+                        </div>
+                      ) : (
+                        <PlayerLeaderboard data={players} />
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="koth" className="mt-6">
+                      <KOTHLeaderboard />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
               </Tabs>
             </div>
